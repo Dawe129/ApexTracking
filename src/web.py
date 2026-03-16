@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from flask import Flask, render_template, request
 
 from src.collector import CollectorError, fetch_player_stats, load_api_key, player_to_row
 from src.predictor import ApexPredictor, PredictorError
 
-app = Flask(__name__)
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+app = Flask(
+    __name__,
+    template_folder=str(PROJECT_ROOT / "templates"),
+    static_folder=str(PROJECT_ROOT / "static"),
+)
 
 
 def _format_value(value: float) -> str:
