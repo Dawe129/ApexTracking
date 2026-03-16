@@ -1,0 +1,239 @@
+:root {
+    --bg-0: #07151f;
+    --bg-1: #0b2433;
+    --card: rgba(8, 24, 34, 0.83);
+    --ink: #ebf4fa;
+    --ink-soft: #9ab6c8;
+    --accent: #ff7f2a;
+    --accent-2: #ffd24a;
+    --danger: #ff5b5b;
+    --line: rgba(154, 182, 200, 0.25);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: "Space Grotesk", sans-serif;
+    color: var(--ink);
+    background:
+        radial-gradient(circle at 85% 10%, rgba(255, 127, 42, 0.14), transparent 30%),
+        radial-gradient(circle at 10% 80%, rgba(255, 210, 74, 0.12), transparent 35%),
+        linear-gradient(130deg, var(--bg-0), var(--bg-1));
+    overflow-x: hidden;
+}
+
+.bg-shape {
+    position: fixed;
+    pointer-events: none;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transform: rotate(16deg);
+    z-index: 0;
+}
+
+.bg-shape-a {
+    width: 280px;
+    height: 280px;
+    right: -80px;
+    top: 20px;
+    animation: driftA 10s ease-in-out infinite alternate;
+}
+
+.bg-shape-b {
+    width: 420px;
+    height: 420px;
+    left: -200px;
+    bottom: -120px;
+    animation: driftB 12s ease-in-out infinite alternate;
+}
+
+.layout {
+    position: relative;
+    z-index: 1;
+    width: min(980px, calc(100% - 2rem));
+    margin: 2.2rem auto;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.2rem;
+}
+
+.hero {
+    opacity: 0;
+    animation: riseIn 700ms ease forwards;
+}
+
+.eyebrow {
+    margin: 0;
+    letter-spacing: 0.16em;
+    color: var(--accent-2);
+    text-transform: uppercase;
+    font-size: 0.8rem;
+}
+
+h1 {
+    margin: 0.25rem 0 0;
+    font-family: "Bebas Neue", sans-serif;
+    letter-spacing: 0.03em;
+    font-size: clamp(2.2rem, 6vw, 4.4rem);
+    line-height: 0.96;
+}
+
+.lead {
+    margin-top: 0.7rem;
+    color: var(--ink-soft);
+    max-width: 58ch;
+}
+
+.card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 1rem;
+    backdrop-filter: blur(7px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+    opacity: 0;
+    animation: riseIn 700ms ease 120ms forwards;
+}
+
+.form {
+    display: grid;
+    gap: 0.65rem;
+}
+
+label {
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+}
+
+input,
+select,
+button {
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    padding: 0.76rem 0.86rem;
+    font: inherit;
+}
+
+input,
+select {
+    background: rgba(4, 15, 23, 0.78);
+    color: var(--ink);
+}
+
+button {
+    border: none;
+    margin-top: 0.5rem;
+    font-weight: 700;
+    color: #111;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    cursor: pointer;
+    transition: transform 180ms ease, filter 180ms ease;
+}
+
+button:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.04);
+}
+
+.status {
+    margin-top: 1rem;
+    padding: 0.8rem 0.9rem;
+    border-radius: 10px;
+    border: 1px solid transparent;
+}
+
+.status.error {
+    color: #ffd8d8;
+    border-color: rgba(255, 91, 91, 0.4);
+    background: rgba(255, 91, 91, 0.12);
+}
+
+.result {
+    margin-top: 1rem;
+}
+
+.result h2 {
+    margin: 0 0 0.8rem;
+    font-family: "Bebas Neue", sans-serif;
+    letter-spacing: 0.05em;
+    font-size: 1.8rem;
+}
+
+.result-grid,
+.stats-grid {
+    display: grid;
+    gap: 0.65rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.result-grid article,
+.stats-grid article {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 0.75rem;
+    background: rgba(5, 17, 26, 0.72);
+}
+
+.result-grid span,
+.stats-grid span {
+    display: block;
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.result-grid strong,
+.stats-grid strong {
+    margin-top: 0.24rem;
+    display: block;
+    font-size: 1.06rem;
+}
+
+@keyframes riseIn {
+    from {
+        opacity: 0;
+        transform: translateY(18px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes driftA {
+    from {
+        transform: rotate(16deg) translateY(0);
+    }
+    to {
+        transform: rotate(16deg) translateY(24px);
+    }
+}
+
+@keyframes driftB {
+    from {
+        transform: rotate(16deg) translateY(0);
+    }
+    to {
+        transform: rotate(16deg) translateY(-20px);
+    }
+}
+
+@media (max-width: 700px) {
+    .layout {
+        width: min(980px, calc(100% - 1.1rem));
+        margin: 1.1rem auto 1.6rem;
+    }
+
+    .card {
+        padding: 0.9rem;
+    }
+
+    .result-grid,
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+}

@@ -18,6 +18,7 @@ ApexTracking/
 - src/
   - collector.py
   - predictor.py
+  - web.py
   - app.py
 - data/
   - players_input.txt
@@ -74,7 +75,19 @@ Otevri `notebook.ipynb` v Colabu/Jupyter a spust vsechny bunky:
 python app.py
 ```
 
-Aplikace si vyzada jmeno hrace, stahne aktualni data z API a vrati predikovany rank a damage/game.
+Po spusteni otevri prohlizec na adrese `http://127.0.0.1:5000`.
+
+Web aplikace umoznuje zadat jmeno hrace a platformu, potom vrati:
+
+- predikovany rank
+- predikovany damage/game
+- zakladni zive statistiky hrace
+
+Volitelne muzes stale pouzit konzolovou verzi:
+
+```bash
+python -m src.app
+```
 
 ## Puvod dat
 
