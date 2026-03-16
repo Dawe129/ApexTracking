@@ -5,90 +5,131 @@ Projekt sbira statistiky hracu z mozambiquehe.re API a pomoci strojoveho uceni p
 - Rank hrace (Bronze -> Predator) - klasifikace
 - Damage per game - regrese
 
-## Technologie
+## Aktualni stav projektu
 
-- Python
-- mozambiquehe.re API
-- scikit-learn
-- Google Colab / Jupyter Notebook
+Hotovo:
+
+- API collector podle jmena hrace
+- API collector podle UID (harvester pro velky pocet unikatu)
+- trenink modelu do model/model.pkl
+- web aplikace (Flask) pro predikci
+- konzolova aplikace (volitelna)
+
+Pouzivana cesta je:
+
+- data/players.csv -> treninkova data
+- model/model.pkl -> model pro predikce
+
+Soubor data/players_input.txt je jen volitelny manualni vstup pro collector podle jmen.
 
 ## Struktura projektu
 
 ApexTracking/
 - src/
-  - collector.py
-  - predictor.py
-  - web.py
-  - app.py
+  - collector.py      (sber dat podle jmena, + API fetch podle uid)
+  - uid_harvester.py  (sber velkeho poctu unikatu)
+  - train.py          (trenink modelu a export model.pkl)
+  - predictor.py      (nacteni modelu a predikce)
+  - web.py            (Flask web)
+  - app.py            (CLI verze)
 - data/
-  - players_input.txt
   - players.csv
+  - players_input.txt
+  - players_unique_test.csv (testovaci soubor, neni nutny)
 - model/
-  - model.pkl (vytvori se po treningu)
-- vendor/
+  - model.pkl
+- templates/
+  - index.html
+- static/
+  - style.css
 - notebook.ipynb
+- app.py              (hlavni vstup pro web)
 - .env
 - .env.example
-- .gitignore
 - requirements.txt
-- README.md
 
-## 1) Instalace
+## Instalace
 
-```bash
-pip install -r requirements.txt
+Windows PowerShell:
+
+```powershell
+Set-Location "C:\Users\dpivo\Downloads\projekty\ApexTracking"
+$py = ".\\.venv\\Scripts\\python.exe"
+& $py -m pip install -r requirements.txt
 ```
 
-## 2) API klic
+## API klic
 
-Do souboru `.env` vloz jednu z moznosti:
+Do souboru .env vloz:
 
 ```env
 APEX_API_KEY=tvuj_api_klic
 ```
 
-nebo pouze hodnotu klice na prvni radek.
+Alternativne muzes mit v .env jen samotny klic na prvnim radku.
 
-## 3) Sber dat
+## Sber dat
 
-Priprav seznam jmen hracu do `data/players_input.txt` (1 jmeno na radek), potom spust:
+### Varianta A - manualni seznam jmen
 
-```bash
-python -m src.collector --players-file data/players_input.txt --out data/players.csv --platform PC
+Pouziva data/players_input.txt (1 jmeno na radek):
+
+```powershell
+& $py -m src.collector --players-file data/players_input.txt --out data/players.csv --platform PC
 ```
 
-Pro 1500+ hracu pouzij vetsi vstupni seznam a pripadne zvys prodlevu parametrem `--sleep`.
+### Varianta B - doporucena (1500+ unikatu)
 
-## 4) Trenink modelu v notebooku
+Pouziva src.uid_harvester a uklada prubezne checkpointy.
 
-Otevri `notebook.ipynb` v Colabu/Jupyter a spust vsechny bunky:
-
-- nacteni a cisteni dat
-- trening klasifikace ranku
-- trening regrese damage
-- evaluace (accuracy, MAE, grafy)
-- export `model/model.pkl`
-
-## 5) Spusteni aplikace
-
-```bash
-python app.py
+```powershell
+& $py -m src.uid_harvester --target 1500 --max-attempts 120000 --platform PC --out data/players.csv --sleep 0.02 --checkpoint-every 25
 ```
 
-Po spusteni otevri prohlizec na adrese `http://127.0.0.1:5000`.
+Poznamky:
 
-Web aplikace umoznuje zadat jmeno hrace a platformu, potom vrati:
+- skript lze bezpecne prerusit Ctrl+C
+- progress se ulozi do data/players.csv
+- dalsi spusteni navaze na ulozena data
 
-- predikovany rank
-- predikovany damage/game
-- zakladni zive statistiky hrace
+Kontrola poctu zaznamu:
 
-Volitelne muzes stale pouzit konzolovou verzi:
-
-```bash
-python -m src.app
+```powershell
+& $py -c "import pandas as pd; df=pd.read_csv('data/players.csv'); print('rows:',len(df)); print('unique_uid:',df['uid'].nunique())"
 ```
+
+## Trenink modelu
+
+```powershell
+& $py -m src.train --csv data/players.csv --out model/model.pkl
+```
+
+## Spusteni aplikace
+
+### Web (doporuceno)
+
+```powershell
+& $py app.py
+```
+
+Pak otevri:
+
+- http://127.0.0.1:5000/
+
+Dulezite: pouzij http, ne https.
+
+### Konzole (volitelne)
+
+```powershell
+& $py -m src.app
+```
+
+## Notebook
+
+Soubor notebook.ipynb je pripraveny pro Colab/Jupyter jako alternativni cesta treninku a evaluace.
 
 ## Puvod dat
 
-Data pochazi z verejneho Apex Legends API: https://apexlegendsapi.com/ (mozambiquehe.re)
+Data pochazi z verejneho Apex Legends API:
+
+- https://apexlegendsapi.com/
