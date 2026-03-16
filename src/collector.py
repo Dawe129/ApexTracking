@@ -75,7 +75,11 @@ def fetch_player_stats(player: str, api_key: str, platform: str = "PC", timeout:
         "platform": platform,
     }
 
-    response = requests.get(API_URL, params=params, timeout=timeout)
+    try:
+        response = requests.get(API_URL, params=params, timeout=timeout)
+    except requests.RequestException as exc:
+        raise CollectorError(f"Network error for '{player}': {exc.__class__.__name__}") from exc
+
     if response.status_code != 200:
         raise CollectorError(f"API request failed for '{player}' with status {response.status_code}: {response.text}")
 
@@ -94,7 +98,11 @@ def fetch_player_stats_by_uid(uid: str, api_key: str, platform: str = "PC", time
         "platform": platform,
     }
 
-    response = requests.get(API_URL, params=params, timeout=timeout)
+    try:
+        response = requests.get(API_URL, params=params, timeout=timeout)
+    except requests.RequestException as exc:
+        raise CollectorError(f"Network error for uid '{uid}': {exc.__class__.__name__}") from exc
+
     if response.status_code != 200:
         raise CollectorError(f"API request failed for uid '{uid}' with status {response.status_code}: {response.text}")
 

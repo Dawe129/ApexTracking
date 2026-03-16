@@ -2,8 +2,9 @@ import argparse
 import csv
 import random
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Dict, List, Set
+from typing import Dict, List, Optional, Set
 
 from src.collector import (
     CollectorError,
@@ -20,8 +21,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--platform", default="PC", help="API platform (PC, PS4, X1, SWITCH)")
     parser.add_argument("--out", default="data/players.csv", help="Output CSV path")
     parser.add_argument("--sleep", type=float, default=0.0, help="Sleep seconds between requests")
+    parser.add_argument("--request-timeout", type=float, default=20.0, help="Per-request timeout in seconds")
     parser.add_argument("--seed-csv", default="data/players.csv", help="CSV with known UIDs to seed search")
     parser.add_argument("--checkpoint-every", type=int, default=25, help="Save every N newly found accounts")
+    parser.add_argument("--workers", type=int, default=1, help="Parallel request workers for faster collection")
     return parser.parse_args()
 
 
@@ -74,6 +77,19 @@ def load_existing_rows(out_csv: Path) -> List[Dict[str, object]]:
         return [dict(row) for row in reader]
 
 
+def try_fetch_row(uid: str, api_key: str, platform: str, request_timeout: float) -> Optional[Dict[str, object]]:
+    try:
+        payload = fetch_player_stats_by_uid(
+            uid=uid,
+            api_key=api_key,
+            platform=platform,
+            timeout=request_timeout,
+        )
+        return player_to_row(payload)
+    except CollectorError:
+        return None
+
+
 def main() -> None:
     args = parse_args()
     api_key = load_api_key()
@@ -95,31 +111,68 @@ def main() -> None:
     if rows:
         print(f"Resuming from {len(rows)} already saved accounts in {out_path}")
 
+    workers = max(1, int(args.workers))
+    batch_size = workers if workers == 1 else workers * 3
+
     attempts = 0
     try:
         while attempts < args.max_attempts and len(rows) < args.target:
-            attempts += 1
-            uid = str(candidate_uid(seeds))
-            if uid in seen_uids:
+            candidate_uids: List[str] = []
+            while len(candidate_uids) < batch_size and attempts < args.max_attempts:
+                attempts += 1
+                uid = str(candidate_uid(seeds))
+                if uid in seen_uids:
+                    continue
+                seen_uids.add(uid)
+                candidate_uids.append(uid)
+
+            if not candidate_uids:
                 continue
 
-            seen_uids.add(uid)
+            if workers == 1:
+                for uid in candidate_uids:
+                    row = try_fetch_row(uid, api_key=api_key, platform=args.platform, request_timeout=args.request_timeout)
+                    if row is None:
+                        continue
 
-            try:
-                payload = fetch_player_stats_by_uid(uid=uid, api_key=api_key, platform=args.platform)
-                row = player_to_row(payload)
-                row_uid = str(row.get("uid", "")).strip()
-                if not row_uid or row_uid in collected_uids:
-                    continue
+                    row_uid = str(row.get("uid", "")).strip()
+                    if not row_uid or row_uid in collected_uids:
+                        continue
 
-                rows.append(row)
-                collected_uids.add(row_uid)
-                seeds.append(int(row_uid))
-                if len(rows) % args.checkpoint_every == 0:
-                    write_rows(out_path, rows)
-                    print(f"Checkpoint saved: {len(rows)} unique accounts after {attempts} attempts...")
-            except CollectorError:
-                pass
+                    rows.append(row)
+                    collected_uids.add(row_uid)
+                    seeds.append(int(row_uid))
+                    if len(rows) % args.checkpoint_every == 0:
+                        write_rows(out_path, rows)
+                        print(f"Checkpoint saved: {len(rows)} unique accounts after {attempts} attempts...")
+            else:
+                with ThreadPoolExecutor(max_workers=workers) as executor:
+                    future_to_uid = {
+                        executor.submit(
+                            try_fetch_row,
+                            uid,
+                            api_key,
+                            args.platform,
+                            args.request_timeout,
+                        ): uid
+                        for uid in candidate_uids
+                    }
+
+                    for future in as_completed(future_to_uid):
+                        row = future.result()
+                        if row is None:
+                            continue
+
+                        row_uid = str(row.get("uid", "")).strip()
+                        if not row_uid or row_uid in collected_uids:
+                            continue
+
+                        rows.append(row)
+                        collected_uids.add(row_uid)
+                        seeds.append(int(row_uid))
+                        if len(rows) % args.checkpoint_every == 0:
+                            write_rows(out_path, rows)
+                            print(f"Checkpoint saved: {len(rows)} unique accounts after {attempts} attempts...")
 
             if args.sleep > 0:
                 time.sleep(args.sleep)
