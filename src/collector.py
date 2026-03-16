@@ -86,6 +86,25 @@ def fetch_player_stats(player: str, api_key: str, platform: str = "PC", timeout:
     return payload
 
 
+def fetch_player_stats_by_uid(uid: str, api_key: str, platform: str = "PC", timeout: int = 20) -> Dict[str, Any]:
+    """Fetch one player profile by UID from the mozambiquehe.re API."""
+    params = {
+        "auth": api_key,
+        "uid": uid,
+        "platform": platform,
+    }
+
+    response = requests.get(API_URL, params=params, timeout=timeout)
+    if response.status_code != 200:
+        raise CollectorError(f"API request failed for uid '{uid}' with status {response.status_code}: {response.text}")
+
+    payload = response.json()
+    if isinstance(payload, dict) and payload.get("Error"):
+        raise CollectorError(f"API error for uid '{uid}': {payload['Error']}")
+
+    return payload
+
+
 def player_to_row(payload: Dict[str, Any], requested_name: str = "") -> Dict[str, Any]:
     """Maps API payload into a flat row for ML."""
     global_stats = payload.get("global", {}) if isinstance(payload, dict) else {}
