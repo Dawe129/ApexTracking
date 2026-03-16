@@ -35,6 +35,14 @@ def _extract_nested_value(data: Dict[str, Any], path: List[str], fallback: float
     return _coerce_float(current, fallback)
 
 
+def _extract_first_value(data: Dict[str, Any], paths: List[List[str]], fallback: float = 0.0) -> float:
+    for path in paths:
+        value = _extract_nested_value(data, path, fallback=float("nan"))
+        if not (isinstance(value, float) and value != value):
+            return value
+    return fallback
+
+
 def load_api_key() -> str:
     """Loads API key from env vars or a plain value in .env."""
     load_dotenv()
@@ -95,8 +103,12 @@ def player_to_row(payload: Dict[str, Any], requested_name: str = "") -> Dict[str
     kills = _extract_nested_value(total_stats, ["kills"])
     damage = _extract_nested_value(total_stats, ["damage"])
     headshots = _extract_nested_value(total_stats, ["headshots"])
-    games_played = _extract_nested_value(total_stats, ["games_played"])
-    wins = _extract_nested_value(total_stats, ["wins"])
+    games_played = _extract_first_value(
+        total_stats,
+        paths=[["games_played"], ["matchesplayed"], ["matches_played"]],
+        fallback=0.0,
+    )
+    wins = _extract_first_value(total_stats, paths=[["wins"], ["matcheswon"], ["matches_won"]], fallback=0.0)
 
     kdr = kills / games_played if games_played > 0 else 0.0
     damage_per_game = damage / games_played if games_played > 0 else 0.0
@@ -121,15 +133,24 @@ def player_to_row(payload: Dict[str, Any], requested_name: str = "") -> Dict[str
 def collect_players(players: Iterable[str], out_csv: Path, api_key: str, platform: str = "PC", sleep_seconds: float = 0.3) -> int:
     """Collects data for a list of players and writes rows to CSV."""
     rows: List[Dict[str, Any]] = []
+    cache: Dict[str, Dict[str, Any]] = {}
 
     for idx, player in enumerate(players, start=1):
         player = player.strip()
         if not player:
             continue
 
+        cache_key = player.lower()
+        if cache_key in cache:
+            rows.append(dict(cache[cache_key]))
+            print(f"[{idx}] OK (cached): {player}")
+            continue
+
         try:
             payload = fetch_player_stats(player=player, api_key=api_key, platform=platform)
-            rows.append(player_to_row(payload, requested_name=player))
+            row = player_to_row(payload, requested_name=player)
+            cache[cache_key] = row
+            rows.append(dict(row))
             print(f"[{idx}] OK: {player}")
         except CollectorError as exc:
             print(f"[{idx}] SKIP: {player} -> {exc}")
