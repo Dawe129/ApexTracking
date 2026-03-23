@@ -10,7 +10,7 @@ Projekt sbira statistiky hracu z mozambiquehe.re API a pomoci strojoveho uceni p
 Hotovo:
 
 - API collector podle jmena hrace
-- API collector podle UID (harvester pro velky pocet unikatu)
+- API collector podle UID (harvester pro velky pocet unikatu, checkpoint/resume, paralelni workers)
 - trenink modelu do model/model.pkl
 - web aplikace (Flask) pro predikci
 - konzolova aplikace (volitelna)
@@ -22,12 +22,48 @@ Pouzivana cesta je:
 
 Soubor data/players_input.txt je jen volitelny manualni vstup pro collector podle jmen.
 
+## Quick Start (Doporuceno)
+
+1) Instalace:
+
+```powershell
+Set-Location "C:\Users\dpivo\Downloads\projekty\ApexTracking"
+$py = ".\\.venv\\Scripts\\python.exe"
+& $py -m pip install -r requirements.txt
+```
+
+2) Rychly sber 1500+ unikatu:
+
+```powershell
+& $py -m src.uid_harvester --target 1500 --max-attempts 500000 --platform PC --out data/players.csv --sleep 0 --request-timeout 3 --checkpoint-every 50 --workers 16
+```
+
+3) Kontrola poctu dat:
+
+```powershell
+& $py -c "import pandas as pd; df=pd.read_csv('data/players.csv'); print('rows:', len(df)); print('unique_uid:', df['uid'].nunique())"
+```
+
+4) Trenink modelu:
+
+```powershell
+& $py -m src.train --csv data/players.csv --out model/model.pkl
+```
+
+5) Spusteni webu:
+
+```powershell
+& $py app.py
+```
+
+Otevri: http://127.0.0.1:5000/
+
 ## Struktura projektu
 
 ApexTracking/
 - src/
   - collector.py      (sber dat podle jmena, + API fetch podle uid)
-  - uid_harvester.py  (sber velkeho poctu unikatu)
+  - uid_harvester.py  (sber velkeho poctu unikatu, resume, checkpoint, workers)
   - train.py          (trenink modelu a export model.pkl)
   - predictor.py      (nacteni modelu a predikce)
   - web.py            (Flask web)
@@ -83,7 +119,7 @@ Pouziva data/players_input.txt (1 jmeno na radek):
 Pouziva src.uid_harvester a uklada prubezne checkpointy.
 
 ```powershell
-& $py -m src.uid_harvester --target 1500 --max-attempts 120000 --platform PC --out data/players.csv --sleep 0.02 --checkpoint-every 25
+& $py -m src.uid_harvester --target 1500 --max-attempts 500000 --platform PC --out data/players.csv --sleep 0 --request-timeout 3 --checkpoint-every 50 --workers 16
 ```
 
 Poznamky:
@@ -91,6 +127,13 @@ Poznamky:
 - skript lze bezpecne prerusit Ctrl+C
 - progress se ulozi do data/players.csv
 - dalsi spusteni navaze na ulozena data
+
+Zakladni tuning parametru:
+
+- --workers: paralelni requests (rychlejsi sber), zacni 16; pri nestabilite sniz na 8
+- --request-timeout: jak dlouho cekat na request, doporuceno 2.5-4 s
+- --sleep: 0 pro max rychlost
+- --checkpoint-every: mene zapisu na disk, doporuceno 50
 
 Kontrola poctu zaznamu:
 
@@ -133,3 +176,22 @@ Soubor notebook.ipynb je pripraveny pro Colab/Jupyter jako alternativni cesta tr
 Data pochazi z verejneho Apex Legends API:
 
 - https://apexlegendsapi.com/
+
+## Troubleshooting
+
+1) Python z .venv nejde spustit:
+
+- Ujisti se, ze jsi v root slozce projektu: C:\Users\dpivo\Downloads\projekty\ApexTracking
+- Neklikej cd ApexTracking podruhe.
+- Over cestu: Test-Path .\\.venv\\Scripts\\python.exe
+
+2) Harvester hlasi timeouty:
+
+- Jde o sit/API nestabilitu, ne nutne o neplatny klic.
+- Pro max propustnost pouzij workers + nizsi timeout.
+- Pri velke nestabilite zkus workers 8 a request-timeout 4.
+
+3) Web nejde otevrit v prohlizeci:
+
+- Otevirat pouze http://127.0.0.1:5000/
+- Nepouzivat https://127.0.0.1:5000/
