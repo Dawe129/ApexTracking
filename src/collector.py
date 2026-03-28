@@ -157,7 +157,65 @@ def player_to_row(payload: Dict[str, Any], requested_name: str = "") -> Dict[str
     }
 
 
-def collect_players(players: Iterable[str], out_csv: Path, api_key: str, platform: str = "PC", sleep_seconds: float = 0.3) -> int:
+def row_nonzero_metric_count(row: Dict[str, Any]) -> int:
+    metrics = [
+        _coerce_float(row.get("kills")),
+        _coerce_float(row.get("damage")),
+        _coerce_float(row.get("games_played")),
+        _coerce_float(row.get("wins")),
+        _coerce_float(row.get("headshots")),
+        _coerce_float(row.get("rank_score")),
+    ]
+    return sum(1 for value in metrics if value > 0)
+
+
+def is_row_usable(
+    row: Dict[str, Any],
+    min_level: float = 25.0,
+    min_kills: float = 80.0,
+    min_damage: float = 20000.0,
+    min_rank_score: float = 1000.0,
+    min_nonzero_metrics: int = 3,
+    require_gameplay_signal: bool = True,
+) -> bool:
+    """Checks if the collected row has enough signal for ML training."""
+    level = _coerce_float(row.get("level"))
+    kills = _coerce_float(row.get("kills"))
+    damage = _coerce_float(row.get("damage"))
+    games_played = _coerce_float(row.get("games_played"))
+    wins = _coerce_float(row.get("wins"))
+    headshots = _coerce_float(row.get("headshots"))
+    rank_score = _coerce_float(row.get("rank_score"))
+
+    if level < min_level:
+        return False
+
+    if row_nonzero_metric_count(row) < min_nonzero_metrics:
+        return False
+
+    if require_gameplay_signal and (games_played <= 0 and damage <= 0 and wins <= 0 and headshots <= 0):
+        return False
+
+    # Keep rows that are active enough in at least one major signal.
+    if kills < min_kills and damage < min_damage and games_played <= 0 and rank_score < min_rank_score:
+        return False
+
+    return True
+
+
+def collect_players(
+    players: Iterable[str],
+    out_csv: Path,
+    api_key: str,
+    platform: str = "PC",
+    sleep_seconds: float = 0.3,
+    min_level: float = 25.0,
+    min_kills: float = 80.0,
+    min_damage: float = 20000.0,
+    min_rank_score: float = 1000.0,
+    min_nonzero_metrics: int = 3,
+    require_gameplay_signal: bool = True,
+) -> int:
     """Collects data for a list of players and writes rows to CSV."""
     rows: List[Dict[str, Any]] = []
     cache: Dict[str, Dict[str, Any]] = {}
@@ -176,6 +234,18 @@ def collect_players(players: Iterable[str], out_csv: Path, api_key: str, platfor
         try:
             payload = fetch_player_stats(player=player, api_key=api_key, platform=platform)
             row = player_to_row(payload, requested_name=player)
+            if not is_row_usable(
+                row,
+                min_level=min_level,
+                min_kills=min_kills,
+                min_damage=min_damage,
+                min_rank_score=min_rank_score,
+                min_nonzero_metrics=min_nonzero_metrics,
+                require_gameplay_signal=require_gameplay_signal,
+            ):
+                print(f"[{idx}] SKIP (low-signal): {player}")
+                continue
+
             cache[cache_key] = row
             rows.append(dict(row))
             print(f"[{idx}] OK: {player}")
@@ -210,6 +280,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--out", default="data/players.csv", help="Output CSV path")
     parser.add_argument("--platform", default="PC", help="Platform for API query (PC, PS4, X1, SWITCH)")
     parser.add_argument("--sleep", type=float, default=0.3, help="Sleep between API calls in seconds")
+    parser.add_argument("--min-level", type=float, default=25.0, help="Minimum account level to keep")
+    parser.add_argument("--min-kills", type=float, default=80.0, help="Minimum kills signal threshold")
+    parser.add_argument("--min-damage", type=float, default=20000.0, help="Minimum damage signal threshold")
+    parser.add_argument("--min-rank-score", type=float, default=1000.0, help="Minimum rank score signal threshold")
+    parser.add_argument("--min-nonzero-metrics", type=int, default=3, help="Minimum count of non-zero core metrics")
+    parser.add_argument(
+        "--allow-no-gameplay-signal",
+        action="store_true",
+        help="Allow rows that have no games/damage/wins/headshots signal",
+    )
     return parser.parse_args()
 
 
@@ -224,6 +304,12 @@ def main() -> None:
         api_key=api_key,
         platform=args.platform,
         sleep_seconds=args.sleep,
+        min_level=args.min_level,
+        min_kills=args.min_kills,
+        min_damage=args.min_damage,
+        min_rank_score=args.min_rank_score,
+        min_nonzero_metrics=args.min_nonzero_metrics,
+        require_gameplay_signal=not args.allow_no_gameplay_signal,
     )
 
     print(f"Collected {count} players into {args.out}")

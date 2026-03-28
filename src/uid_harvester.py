@@ -9,6 +9,7 @@ from typing import Dict, List, Optional, Set
 from src.collector import (
     CollectorError,
     fetch_player_stats_by_uid,
+    is_row_usable,
     load_api_key,
     player_to_row,
 )
@@ -25,6 +26,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed-csv", default="data/players.csv", help="CSV with known UIDs to seed search")
     parser.add_argument("--checkpoint-every", type=int, default=25, help="Save every N newly found accounts")
     parser.add_argument("--workers", type=int, default=1, help="Parallel request workers for faster collection")
+    parser.add_argument("--min-level", type=float, default=25.0, help="Minimum account level to keep")
+    parser.add_argument("--min-kills", type=float, default=80.0, help="Minimum kills signal threshold")
+    parser.add_argument("--min-damage", type=float, default=20000.0, help="Minimum damage signal threshold")
+    parser.add_argument("--min-rank-score", type=float, default=1000.0, help="Minimum rank score signal threshold")
+    parser.add_argument("--min-nonzero-metrics", type=int, default=3, help="Minimum count of non-zero core metrics")
+    parser.add_argument(
+        "--allow-no-gameplay-signal",
+        action="store_true",
+        help="Allow rows that have no games/damage/wins/headshots signal",
+    )
     return parser.parse_args()
 
 
@@ -77,7 +88,18 @@ def load_existing_rows(out_csv: Path) -> List[Dict[str, object]]:
         return [dict(row) for row in reader]
 
 
-def try_fetch_row(uid: str, api_key: str, platform: str, request_timeout: float) -> Optional[Dict[str, object]]:
+def try_fetch_row(
+    uid: str,
+    api_key: str,
+    platform: str,
+    request_timeout: float,
+    min_level: float,
+    min_kills: float,
+    min_damage: float,
+    min_rank_score: float,
+    min_nonzero_metrics: int,
+    require_gameplay_signal: bool,
+) -> Optional[Dict[str, object]]:
     try:
         payload = fetch_player_stats_by_uid(
             uid=uid,
@@ -85,7 +107,18 @@ def try_fetch_row(uid: str, api_key: str, platform: str, request_timeout: float)
             platform=platform,
             timeout=request_timeout,
         )
-        return player_to_row(payload)
+        row = player_to_row(payload)
+        if not is_row_usable(
+            row,
+            min_level=min_level,
+            min_kills=min_kills,
+            min_damage=min_damage,
+            min_rank_score=min_rank_score,
+            min_nonzero_metrics=min_nonzero_metrics,
+            require_gameplay_signal=require_gameplay_signal,
+        ):
+            return None
+        return row
     except CollectorError:
         return None
 
@@ -97,7 +130,25 @@ def main() -> None:
     out_path = Path(args.out)
     seeds = load_seed_uids(Path(args.seed_csv))
     seen_uids: Set[str] = set()
-    rows: List[Dict[str, object]] = load_existing_rows(out_path)
+    existing_rows: List[Dict[str, object]] = load_existing_rows(out_path)
+    rows: List[Dict[str, object]] = [
+        row
+        for row in existing_rows
+        if is_row_usable(
+            row,
+            min_level=args.min_level,
+            min_kills=args.min_kills,
+            min_damage=args.min_damage,
+            min_rank_score=args.min_rank_score,
+            min_nonzero_metrics=args.min_nonzero_metrics,
+            require_gameplay_signal=not args.allow_no_gameplay_signal,
+        )
+    ]
+
+    if existing_rows and len(rows) != len(existing_rows):
+        print(f"Dropped {len(existing_rows) - len(rows)} low-signal rows from existing dataset")
+        write_rows(out_path, rows)
+
     collected_uids: Set[str] = {
         str(row.get("uid", "")).strip()
         for row in rows
@@ -131,7 +182,18 @@ def main() -> None:
 
             if workers == 1:
                 for uid in candidate_uids:
-                    row = try_fetch_row(uid, api_key=api_key, platform=args.platform, request_timeout=args.request_timeout)
+                    row = try_fetch_row(
+                        uid,
+                        api_key=api_key,
+                        platform=args.platform,
+                        request_timeout=args.request_timeout,
+                        min_level=args.min_level,
+                        min_kills=args.min_kills,
+                        min_damage=args.min_damage,
+                        min_rank_score=args.min_rank_score,
+                        min_nonzero_metrics=args.min_nonzero_metrics,
+                        require_gameplay_signal=not args.allow_no_gameplay_signal,
+                    )
                     if row is None:
                         continue
 
@@ -154,6 +216,12 @@ def main() -> None:
                             api_key,
                             args.platform,
                             args.request_timeout,
+                            args.min_level,
+                            args.min_kills,
+                            args.min_damage,
+                            args.min_rank_score,
+                            args.min_nonzero_metrics,
+                            not args.allow_no_gameplay_signal,
                         ): uid
                         for uid in candidate_uids
                     }
