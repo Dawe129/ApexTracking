@@ -3,6 +3,7 @@ import csv
 import random
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 
@@ -36,6 +37,10 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Allow rows that have no games/damage/wins/headshots signal",
     )
+    parser.add_argument("--checkpoint-seconds", type=int, default=300, help="Periodic checkpoint interval in seconds")
+    parser.add_argument("--status-seconds", type=int, default=60, help="Status print interval in seconds")
+    parser.add_argument("--run-forever", action="store_true", help="Ignore target/max-attempts and run until interrupted")
+    parser.add_argument("--max-runtime-hours", type=float, default=0.0, help="Stop automatically after N hours (0 = disabled)")
     return parser.parse_args()
 
 
@@ -121,11 +126,15 @@ def try_fetch_row(
         return row
     except CollectorError:
         return None
+    except Exception:
+        return None
 
 
 def main() -> None:
     args = parse_args()
     api_key = load_api_key()
+    start_ts = time.time()
+    started_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     out_path = Path(args.out)
     seeds = load_seed_uids(Path(args.seed_csv))
@@ -164,51 +173,75 @@ def main() -> None:
 
     workers = max(1, int(args.workers))
     batch_size = workers if workers == 1 else workers * 3
+    checkpoint_seconds = max(10, int(args.checkpoint_seconds))
+    status_seconds = max(10, int(args.status_seconds))
+
+    def should_continue(current_attempts: int, current_rows: int) -> bool:
+        if args.max_runtime_hours > 0:
+            elapsed_hours = (time.time() - start_ts) / 3600.0
+            if elapsed_hours >= args.max_runtime_hours:
+                return False
+
+        if args.run_forever:
+            return True
+
+        return current_attempts < args.max_attempts and current_rows < args.target
 
     attempts = 0
+    last_checkpoint_ts = time.time()
+    last_status_ts = time.time()
+    status_seen_rows = len(rows)
+    status_seen_attempts = 0
+    print(f"Harvester started at {started_at} with workers={workers}, timeout={args.request_timeout}s")
     try:
-        while attempts < args.max_attempts and len(rows) < args.target:
-            candidate_uids: List[str] = []
-            while len(candidate_uids) < batch_size and attempts < args.max_attempts:
-                attempts += 1
-                uid = str(candidate_uid(seeds))
-                if uid in seen_uids:
-                    continue
-                seen_uids.add(uid)
-                candidate_uids.append(uid)
-
-            if not candidate_uids:
-                continue
-
-            if workers == 1:
-                for uid in candidate_uids:
-                    row = try_fetch_row(
-                        uid,
-                        api_key=api_key,
-                        platform=args.platform,
-                        request_timeout=args.request_timeout,
-                        min_level=args.min_level,
-                        min_kills=args.min_kills,
-                        min_damage=args.min_damage,
-                        min_rank_score=args.min_rank_score,
-                        min_nonzero_metrics=args.min_nonzero_metrics,
-                        require_gameplay_signal=not args.allow_no_gameplay_signal,
-                    )
-                    if row is None:
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            while should_continue(attempts, len(rows)):
+                candidate_uids: List[str] = []
+                while len(candidate_uids) < batch_size and should_continue(attempts, len(rows)):
+                    attempts += 1
+                    uid = str(candidate_uid(seeds))
+                    if uid in seen_uids:
                         continue
+                    seen_uids.add(uid)
+                    candidate_uids.append(uid)
 
-                    row_uid = str(row.get("uid", "")).strip()
-                    if not row_uid or row_uid in collected_uids:
-                        continue
-
-                    rows.append(row)
-                    collected_uids.add(row_uid)
-                    seeds.append(int(row_uid))
-                    if len(rows) % args.checkpoint_every == 0:
+                if not candidate_uids:
+                    now = time.time()
+                    if now - last_checkpoint_ts >= checkpoint_seconds:
                         write_rows(out_path, rows)
-                        print(f"Checkpoint saved: {len(rows)} unique accounts after {attempts} attempts...")
-            else:
-                with ThreadPoolExecutor(max_workers=workers) as executor:
+                        print(f"Checkpoint saved (time): {len(rows)} unique accounts after {attempts} attempts...")
+                        last_checkpoint_ts = now
+                    continue
+
+                if workers == 1:
+                    for uid in candidate_uids:
+                        row = try_fetch_row(
+                            uid,
+                            api_key=api_key,
+                            platform=args.platform,
+                            request_timeout=args.request_timeout,
+                            min_level=args.min_level,
+                            min_kills=args.min_kills,
+                            min_damage=args.min_damage,
+                            min_rank_score=args.min_rank_score,
+                            min_nonzero_metrics=args.min_nonzero_metrics,
+                            require_gameplay_signal=not args.allow_no_gameplay_signal,
+                        )
+                        if row is None:
+                            continue
+
+                        row_uid = str(row.get("uid", "")).strip()
+                        if not row_uid or row_uid in collected_uids:
+                            continue
+
+                        rows.append(row)
+                        collected_uids.add(row_uid)
+                        seeds.append(int(row_uid))
+                        if len(rows) % args.checkpoint_every == 0:
+                            write_rows(out_path, rows)
+                            print(f"Checkpoint saved: {len(rows)} unique accounts after {attempts} attempts...")
+                            last_checkpoint_ts = time.time()
+                else:
                     future_to_uid = {
                         executor.submit(
                             try_fetch_row,
@@ -227,7 +260,10 @@ def main() -> None:
                     }
 
                     for future in as_completed(future_to_uid):
-                        row = future.result()
+                        try:
+                            row = future.result()
+                        except Exception:
+                            row = None
                         if row is None:
                             continue
 
@@ -241,9 +277,29 @@ def main() -> None:
                         if len(rows) % args.checkpoint_every == 0:
                             write_rows(out_path, rows)
                             print(f"Checkpoint saved: {len(rows)} unique accounts after {attempts} attempts...")
+                            last_checkpoint_ts = time.time()
 
-            if args.sleep > 0:
-                time.sleep(args.sleep)
+                now = time.time()
+                if now - last_checkpoint_ts >= checkpoint_seconds:
+                    write_rows(out_path, rows)
+                    print(f"Checkpoint saved (time): {len(rows)} unique accounts after {attempts} attempts...")
+                    last_checkpoint_ts = now
+
+                if now - last_status_ts >= status_seconds:
+                    delta_rows = len(rows) - status_seen_rows
+                    delta_attempts = attempts - status_seen_attempts
+                    elapsed = now - start_ts
+                    attempts_per_sec = delta_attempts / max(1.0, now - last_status_ts)
+                    print(
+                        f"Status: rows={len(rows)}, attempts={attempts}, +rows={delta_rows}, "
+                        f"attempt_rate={attempts_per_sec:.2f}/s, elapsed={elapsed/3600.0:.2f}h"
+                    )
+                    status_seen_rows = len(rows)
+                    status_seen_attempts = attempts
+                    last_status_ts = now
+
+                if args.sleep > 0:
+                    time.sleep(args.sleep)
     except KeyboardInterrupt:
         print("Interrupted. Saving current progress...")
 
