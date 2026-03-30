@@ -35,6 +35,10 @@ def _format_value(value: float) -> str:
     return f"{value:,.2f}".replace(",", " ")
 
 
+def _format_percent(value: float) -> str:
+    return f"{value * 100:.2f}%"
+
+
 def _load_current_user() -> Dict[str, Any] | None:
     user_id = session.get("user_id")
     if not user_id:
@@ -57,6 +61,7 @@ def _run_prediction(player_name: str, platform: str) -> Tuple[Dict[str, Any], Di
         "player": row["player"],
         "rank": pred["predicted_rank"],
         "damage_per_game": _format_value(damage_raw),
+        "win_rate": _format_percent(float(pred.get("predicted_win_rate", 0.0))),
         "source": source,
         "best_map": pred["best_map"],
         "best_legend": pred["best_legend"],

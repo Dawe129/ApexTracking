@@ -38,6 +38,12 @@ def _build_damage_target(df: pd.DataFrame) -> pd.Series:
     return damage / games.replace(0, 1)
 
 
+def _build_win_rate_target(df: pd.DataFrame) -> pd.Series:
+    games = pd.to_numeric(df.get("games_played", 0), errors="coerce").fillna(0.0)
+    wins = pd.to_numeric(df.get("wins", 0), errors="coerce").fillna(0.0)
+    return (wins / games.replace(0, 1)).clip(lower=0.0, upper=1.0)
+
+
 def main() -> None:
     args = parse_args()
 
@@ -72,18 +78,37 @@ def main() -> None:
     label_encoder = LabelEncoder()
     y_rank = label_encoder.fit_transform(df["rank"].astype(str))
     y_damage = _build_damage_target(df)
+    y_win_rate = _build_win_rate_target(df)
 
     class_counts = pd.Series(y_rank).value_counts()
     can_stratify = len(class_counts) > 1 and (class_counts.min() >= 2)
 
     split_kwargs = {"test_size": 0.2, "random_state": 42}
     if can_stratify:
-        X_train, X_test, y_rank_train, y_rank_test, y_damage_train, y_damage_test = train_test_split(
-            X, y_rank, y_damage, stratify=y_rank, **split_kwargs
+        (
+            X_train,
+            X_test,
+            y_rank_train,
+            y_rank_test,
+            y_damage_train,
+            y_damage_test,
+            y_win_rate_train,
+            y_win_rate_test,
+        ) = train_test_split(
+            X, y_rank, y_damage, y_win_rate, stratify=y_rank, **split_kwargs
         )
     else:
-        X_train, X_test, y_rank_train, y_rank_test, y_damage_train, y_damage_test = train_test_split(
-            X, y_rank, y_damage, **split_kwargs
+        (
+            X_train,
+            X_test,
+            y_rank_train,
+            y_rank_test,
+            y_damage_train,
+            y_damage_test,
+            y_win_rate_train,
+            y_win_rate_test,
+        ) = train_test_split(
+            X, y_rank, y_damage, y_win_rate, **split_kwargs
         )
 
     rank_model = RandomForestClassifier(
@@ -111,11 +136,24 @@ def main() -> None:
     damage_pred = damage_model.predict(X_test)
     damage_mae = mean_absolute_error(y_damage_test, damage_pred)
 
+    win_rate_model = RandomForestRegressor(
+        n_estimators=args.n_estimators,
+        max_depth=args.max_depth,
+        min_samples_leaf=args.min_samples_leaf,
+        max_features="sqrt",
+        random_state=42,
+        n_jobs=-1,
+    )
+    win_rate_model.fit(X_train, y_win_rate_train)
+    win_rate_pred = np.clip(win_rate_model.predict(X_test), 0.0, 1.0)
+    win_rate_mae = mean_absolute_error(y_win_rate_test, win_rate_pred)
+
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     bundle = {
         "rank_model": rank_model,
         "damage_model": damage_model,
+        "win_rate_model": win_rate_model,
         "label_encoder": label_encoder,
         "feature_columns": feature_columns,
     }
@@ -125,6 +163,7 @@ def main() -> None:
     print(f"Rank classes: {list(label_encoder.classes_)}")
     print(f"Rank accuracy: {rank_acc:.4f}")
     print(f"Damage MAE: {damage_mae:.2f}")
+    print(f"Win rate MAE: {win_rate_mae * 100:.2f} pp")
     print(f"Saved: {out_path}")
 
 

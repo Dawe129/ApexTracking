@@ -166,6 +166,10 @@
                         <strong>{{ result.damage_per_game }}</strong>
                     </article>
                     <article>
+                        <span>Predikovany win rate {{ hint('Odhad procenta vyhranych her pri dlouhodobejsim vzorku zapasu.') }}</span>
+                        <strong>{{ result.win_rate }}</strong>
+                    </article>
+                    <article>
                         <span>Zdroj dat {{ hint('AUTO zvoli API, kdyz jsou data dostupna, jinak lokalni fallback dataset.') }}</span>
                         <strong>{{ result.source }}</strong>
                     </article>
