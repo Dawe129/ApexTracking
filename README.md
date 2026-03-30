@@ -22,7 +22,8 @@ Hotovo:
 Pouzivana cesta je:
 
 - data/players.csv -> treninkova data (staticky podklad pro ucitele/GitHub)
-- data/app.db -> lokalni SQLite DB pro live cache hracu a uzivatelska data
+- data/app.db -> lokalni SQLite DB pro live cache hracu a uzivatelska data (lokalni dev)
+- Render PostgreSQL -> persistentni DB v produkci (kdyz je nastaveno DATABASE_URL)
 - model/model.pkl -> model pro predikce
 
 Manualni vstup podle jmen je volitelny (soubor data/players_input.txt si pripadne vytvor sam).
@@ -190,6 +191,26 @@ Tento flow znamena:
 - prvni dotaz na hrace je live (API)
 - dalsi dotazy na stejne jmeno/platformu jsou rychlejsi z DB cache
 - predikce stale bezi pres model/model.pkl
+
+## Hosting na Render + PostgreSQL
+
+Proc PostgreSQL:
+
+- Render free web service ma ephemerial filesystem, SQLite soubor se muze ztratit po redeploy/restartu.
+- PostgreSQL na Renderu je persistentni, data zustavaji.
+
+Co nastavit na Renderu:
+
+1. Vytvor PostgreSQL service.
+2. Ve Web Service nastav env promennou DATABASE_URL na Internal Database URL z Render PostgreSQL.
+3. Nastav take APEX_API_KEY a FLASK_SECRET_KEY.
+4. Build command: pip install -r requirements.txt
+5. Start command: python app.py
+
+Chovani aplikace:
+
+- kdyz DATABASE_URL existuje -> aplikace automaticky pouzije PostgreSQL
+- kdyz DATABASE_URL neexistuje -> fallback na lokalni SQLite data/app.db
 
 ### Konzole (volitelne)
 
