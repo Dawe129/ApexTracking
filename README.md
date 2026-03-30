@@ -22,8 +22,7 @@ Hotovo:
 Pouzivana cesta je:
 
 - data/players.csv -> treninkova data (staticky podklad pro ucitele/GitHub)
-- data/app.db -> lokalni SQLite DB pro live cache hracu a uzivatelska data (lokalni dev)
-- Render PostgreSQL -> persistentni DB v produkci (kdyz je nastaveno DATABASE_URL)
+- PostgreSQL -> persistentni DB pro uzivatele, historii i live cache hracu
 - model/model.pkl -> model pro predikce
 
 Manualni vstup podle jmen je volitelny (soubor data/players_input.txt si pripadne vytvor sam).
@@ -59,7 +58,7 @@ $py = ".\\.venv\\Scripts\\python.exe"
 5) Spusteni webu:
 
 ```powershell
-& $py app.py
+& $py -m src.web
 ```
 
 Otevri: http://127.0.0.1:5000/
@@ -73,7 +72,6 @@ ApexTracking/
   - train.py          (trenink modelu a export model.pkl)
   - predictor.py      (nacteni modelu a predikce)
   - web.py            (Flask web)
-  - app.py            (CLI verze)
 - data/
   - players.csv
   - players_ready.csv
@@ -84,7 +82,6 @@ ApexTracking/
 - static/
   - style.css
 - notebook.ipynb
-- app.py              (hlavni vstup pro web)
 - .env
 - .env.example
 - requirements.txt
@@ -157,7 +154,7 @@ Kontrola poctu zaznamu:
 ### Web (doporuceno)
 
 ```powershell
-& $py app.py
+& $py -m src.web
 ```
 
 Pak otevri:
@@ -182,8 +179,8 @@ Dulezite: pouzij http, ne https.
 
 Poznamka k vyhledani hrace (AUTO rezim):
 
-- aplikace nejdriv zkusi nacist hrace z lokalni SQLite cache (data/app.db)
-- pokud hrac v cache neni, stahne aktualni data z API a ulozi je do cache
+- aplikace nejdriv zkusi nacist hrace z PostgreSQL cache (tabulka player_cache)
+- pokud hrac v cache neni, stahne aktualni data z API a ulozi je do PostgreSQL
 - kdyz API neni dostupne, pouzije fallback lokalni soubory data/players_ready.csv a data/players.csv
 
 Tento flow znamena:
@@ -196,7 +193,7 @@ Tento flow znamena:
 
 Proc PostgreSQL:
 
-- Render free web service ma ephemerial filesystem, SQLite soubor se muze ztratit po redeploy/restartu.
+- Render free web service ma ephemerial filesystem.
 - PostgreSQL na Renderu je persistentni, data zustavaji.
 
 Co nastavit na Renderu:
@@ -205,12 +202,11 @@ Co nastavit na Renderu:
 2. Ve Web Service nastav env promennou DATABASE_URL na Internal Database URL z Render PostgreSQL.
 3. Nastav take APEX_API_KEY a FLASK_SECRET_KEY.
 4. Build command: pip install -r requirements.txt
-5. Start command: python app.py
+5. Start command: python -m src.web
 
 Chovani aplikace:
 
-- kdyz DATABASE_URL existuje -> aplikace automaticky pouzije PostgreSQL
-- kdyz DATABASE_URL neexistuje -> fallback na lokalni SQLite data/app.db
+- DATABASE_URL je povinny, aplikace bezi jen na PostgreSQL
 
 ### Konzole (volitelne)
 

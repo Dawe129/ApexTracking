@@ -28,7 +28,7 @@ app = Flask(
 )
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-secret-change-me")
 
-init_db(PROJECT_ROOT / "data" / "app.db")
+init_db()
 
 
 def _format_value(value: float) -> str:
@@ -265,7 +265,8 @@ def index():
 
 
 def main() -> None:
-    app.run(host="127.0.0.1", port=5000, debug=False)
+    port = int(os.getenv("PORT", "5000"))
+    app.run(host="0.0.0.0", port=port, debug=False)
 
 
 if __name__ == "__main__":
