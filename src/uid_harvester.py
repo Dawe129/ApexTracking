@@ -37,6 +37,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Allow rows that have no games/damage/wins/headshots signal",
     )
+    parser.add_argument(
+        "--prune-existing-low-signal",
+        action="store_true",
+        help="Drop existing low-signal rows from output before resuming",
+    )
     parser.add_argument("--checkpoint-seconds", type=int, default=300, help="Periodic checkpoint interval in seconds")
     parser.add_argument("--status-seconds", type=int, default=60, help="Status print interval in seconds")
     parser.add_argument("--run-forever", action="store_true", help="Ignore target/max-attempts and run until interrupted")
@@ -140,23 +145,26 @@ def main() -> None:
     seeds = load_seed_uids(Path(args.seed_csv))
     seen_uids: Set[str] = set()
     existing_rows: List[Dict[str, object]] = load_existing_rows(out_path)
-    rows: List[Dict[str, object]] = [
-        row
-        for row in existing_rows
-        if is_row_usable(
-            row,
-            min_level=args.min_level,
-            min_kills=args.min_kills,
-            min_damage=args.min_damage,
-            min_rank_score=args.min_rank_score,
-            min_nonzero_metrics=args.min_nonzero_metrics,
-            require_gameplay_signal=not args.allow_no_gameplay_signal,
-        )
-    ]
+    if args.prune_existing_low_signal:
+        rows = [
+            row
+            for row in existing_rows
+            if is_row_usable(
+                row,
+                min_level=args.min_level,
+                min_kills=args.min_kills,
+                min_damage=args.min_damage,
+                min_rank_score=args.min_rank_score,
+                min_nonzero_metrics=args.min_nonzero_metrics,
+                require_gameplay_signal=not args.allow_no_gameplay_signal,
+            )
+        ]
 
-    if existing_rows and len(rows) != len(existing_rows):
-        print(f"Dropped {len(existing_rows) - len(rows)} low-signal rows from existing dataset")
-        write_rows(out_path, rows)
+        if existing_rows and len(rows) != len(existing_rows):
+            print(f"Dropped {len(existing_rows) - len(rows)} low-signal rows from existing dataset")
+            write_rows(out_path, rows)
+    else:
+        rows = existing_rows
 
     collected_uids: Set[str] = {
         str(row.get("uid", "")).strip()
