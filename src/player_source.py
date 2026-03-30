@@ -53,14 +53,34 @@ def _find_local_player_row(player_name: str) -> Dict[str, Any] | None:
     return None
 
 
-def resolve_player_row(player_name: str, platform: str = "PC") -> Tuple[Dict[str, Any], str]:
-    try:
-        api_key = load_api_key()
-        payload = fetch_player_stats(player=player_name, api_key=api_key, platform=platform)
-        row = player_to_row(payload, requested_name=player_name)
-        return row, "api"
-    except CollectorError as api_error:
+def _resolve_api_row(player_name: str, platform: str) -> Tuple[Dict[str, Any], str]:
+    api_key = load_api_key()
+    payload = fetch_player_stats(player=player_name, api_key=api_key, platform=platform)
+    row = player_to_row(payload, requested_name=player_name)
+    return row, "api"
+
+
+def resolve_player_row(
+    player_name: str,
+    platform: str = "PC",
+    source_mode: str = "auto",
+) -> Tuple[Dict[str, Any], str]:
+    mode = (source_mode or "auto").strip().lower()
+
+    if mode == "local":
         local_row = _find_local_player_row(player_name)
         if local_row is not None:
             return local_row, "local"
-        raise api_error
+        raise CollectorError(f"Hrac '{player_name}' nebyl nalezen v lokalnim datasetu.")
+
+    if mode == "api":
+        return _resolve_api_row(player_name, platform)
+
+    if mode != "auto":
+        raise CollectorError(f"Neznamy rezim zdroje dat: {source_mode}")
+
+    local_row = _find_local_player_row(player_name)
+    if local_row is not None:
+        return local_row, "local"
+
+    return _resolve_api_row(player_name, platform)

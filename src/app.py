@@ -15,7 +15,11 @@ def main() -> None:
     platform = input("Platforma [PC/PS4/X1/SWITCH] (default PC): ").strip().upper() or "PC"
 
     try:
-        row, source = resolve_player_row(player_name=player_name, platform=platform)
+        row, source = resolve_player_row(
+            player_name=player_name,
+            platform=platform,
+            source_mode="auto",
+        )
 
         predictor = ApexPredictor("model/model.pkl")
         result = predictor.predict(row)
@@ -26,6 +30,11 @@ def main() -> None:
         print(f"Zdroj dat: {source}")
         print(f"Predikovany rank: {result['predicted_rank']}")
         print(f"Predikovany damage/game: {result['predicted_damage_per_game']:.2f}")
+        print(f"Nejvhodnejsi mapa: {result['best_map']}")
+        print(f"Nejvhodnejsi legenda: {result['best_legend']}")
+        print(f"Nejvhodnejsi drop zona: {result['best_drop_zone']}")
+        print(f"Doporucena role: {result['ideal_team_role']}")
+        print(f"Herni styl: {result['combat_style']}")
     except (CollectorError, PredictorError, OSError, ValueError) as exc:
         print(f"Chyba: {exc}")
 

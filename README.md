@@ -4,6 +4,9 @@ Projekt sbira statistiky hracu z mozambiquehe.re API a pomoci strojoveho uceni p
 
 - Rank hrace (Bronze -> Predator) - klasifikace
 - Damage per game - regrese
+- Doporucenou mapu, legendu, drop lokaci, roli a herni styl
+
+Dataset v data/players_ready.csv je sjednoceny do jednoho souboru a jmena byla normalizovana (bez sufixu _sim).
 
 ## Aktualni stav projektu
 

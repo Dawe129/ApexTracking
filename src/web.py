@@ -42,7 +42,11 @@ def index():
             return render_template("index.html", **context)
 
         try:
-            row, source = resolve_player_row(player_name=player_name, platform=platform)
+            row, source = resolve_player_row(
+                player_name=player_name,
+                platform=platform,
+                source_mode="auto",
+            )
 
             predictor = ApexPredictor("model/model.pkl")
             pred = predictor.predict(row)
@@ -52,6 +56,11 @@ def index():
                 "rank": pred["predicted_rank"],
                 "damage_per_game": _format_value(pred["predicted_damage_per_game"]),
                 "source": source,
+                "best_map": pred["best_map"],
+                "best_legend": pred["best_legend"],
+                "best_drop_zone": pred["best_drop_zone"],
+                "ideal_team_role": pred["ideal_team_role"],
+                "combat_style": pred["combat_style"],
             }
             context["player_stats"] = {
                 "level": int(row.get("level", 0)),

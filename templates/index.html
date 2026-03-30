@@ -16,8 +16,8 @@
     <main class="layout">
         <section class="hero">
             <p class="eyebrow">Apex Legends ML</p>
-            <h1>Tracker & Predikce</h1>
-            <p class="lead">Zadej hrace a ziskej predikovany rank i damage per game. Kdyz API hrace nenajde, aplikace zkusi lokalni dataset.</p>
+            <h1>Tracker & Smart Doporuceni</h1>
+            <p class="lead">Zadej hrace a aplikace vypocte predikovany rank, damage per game a doporuci mapu, legendu, drop lokaci i herni roli.</p>
         </section>
 
         <section class="card">
@@ -40,9 +40,10 @@
             {% endif %}
 
             {% if result %}
-            <div class="result">
-                <h2>Vysledek</h2>
-                <div class="result-grid">
+            <div class="result-stack">
+                <section class="result">
+                <h2>Predikce Vykonu</h2>
+                <div class="result-grid main-grid">
                     <article>
                         <span>Hrac</span>
                         <strong>{{ result.player }}</strong>
@@ -60,14 +61,44 @@
                         <strong>{{ result.source }}</strong>
                     </article>
                 </div>
+                </section>
+
+                <section class="result">
+                <h2>Doporuceny Setup</h2>
+                <div class="result-grid">
+                    <article>
+                        <span>Nejvhodnejsi mapa</span>
+                        <strong>{{ result.best_map }}</strong>
+                    </article>
+                    <article>
+                        <span>Nejvhodnejsi legenda</span>
+                        <strong>{{ result.best_legend }}</strong>
+                    </article>
+                    <article>
+                        <span>Nejvhodnejsi drop lokace</span>
+                        <strong>{{ result.best_drop_zone }}</strong>
+                    </article>
+                    <article>
+                        <span>Doporucena role</span>
+                        <strong>{{ result.ideal_team_role }}</strong>
+                    </article>
+                    <article>
+                        <span>Herni styl</span>
+                        <strong>{{ result.combat_style }}</strong>
+                    </article>
+                </div>
+                </section>
 
                 {% if player_stats %}
+                <section class="result">
+                <h2>Vstupni Statistiky</h2>
                 <div class="stats-grid">
                     <article><span>Level</span><strong>{{ player_stats.level }}</strong></article>
                     <article><span>Rank score</span><strong>{{ player_stats.rank_score }}</strong></article>
                     <article><span>Kills</span><strong>{{ player_stats.kills }}</strong></article>
                     <article><span>Wins</span><strong>{{ player_stats.wins }}</strong></article>
                 </div>
+                </section>
                 {% endif %}
             </div>
             {% endif %}

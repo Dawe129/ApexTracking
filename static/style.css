@@ -155,6 +155,11 @@ button:hover {
     margin-top: 1rem;
 }
 
+.result-stack {
+    display: grid;
+    gap: 0.85rem;
+}
+
 .result h2 {
     margin: 0 0 0.8rem;
     font-family: "Bebas Neue", sans-serif;
@@ -167,6 +172,10 @@ button:hover {
     display: grid;
     gap: 0.65rem;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.main-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .result-grid article,
@@ -191,6 +200,10 @@ button:hover {
     margin-top: 0.24rem;
     display: block;
     font-size: 1.06rem;
+}
+
+.result-grid article {
+    min-height: 86px;
 }
 
 @keyframes riseIn {
@@ -235,5 +248,15 @@ button:hover {
     .result-grid,
     .stats-grid {
         grid-template-columns: 1fr;
+    }
+
+    .main-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 980px) {
+    .main-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
