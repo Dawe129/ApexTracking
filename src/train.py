@@ -14,6 +14,10 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train Apex rank + damage models")
     parser.add_argument("--csv", default="data/players.csv", help="Input dataset CSV")
     parser.add_argument("--out", default="model/model.pkl", help="Output model bundle path")
+    parser.add_argument("--n-estimators", type=int, default=70, help="Trees per forest model")
+    parser.add_argument("--max-depth", type=int, default=12, help="Maximum tree depth")
+    parser.add_argument("--min-samples-leaf", type=int, default=2, help="Minimum samples in leaf")
+    parser.add_argument("--compress", type=int, default=3, help="joblib compression level 0-9")
     return parser.parse_args()
 
 
@@ -82,12 +86,27 @@ def main() -> None:
             X, y_rank, y_damage, **split_kwargs
         )
 
-    rank_model = RandomForestClassifier(n_estimators=300, random_state=42, class_weight="balanced")
+    rank_model = RandomForestClassifier(
+        n_estimators=args.n_estimators,
+        max_depth=args.max_depth,
+        min_samples_leaf=args.min_samples_leaf,
+        max_features="sqrt",
+        random_state=42,
+        class_weight="balanced",
+        n_jobs=-1,
+    )
     rank_model.fit(X_train, y_rank_train)
     rank_pred = rank_model.predict(X_test)
     rank_acc = accuracy_score(y_rank_test, rank_pred)
 
-    damage_model = RandomForestRegressor(n_estimators=300, random_state=42)
+    damage_model = RandomForestRegressor(
+        n_estimators=args.n_estimators,
+        max_depth=args.max_depth,
+        min_samples_leaf=args.min_samples_leaf,
+        max_features="sqrt",
+        random_state=42,
+        n_jobs=-1,
+    )
     damage_model.fit(X_train, y_damage_train)
     damage_pred = damage_model.predict(X_test)
     damage_mae = mean_absolute_error(y_damage_test, damage_pred)
@@ -100,7 +119,7 @@ def main() -> None:
         "label_encoder": label_encoder,
         "feature_columns": feature_columns,
     }
-    joblib.dump(bundle, out_path)
+    joblib.dump(bundle, out_path, compress=("xz", int(args.compress)))
 
     print(f"Train rows: {len(df)}")
     print(f"Rank classes: {list(label_encoder.classes_)}")
