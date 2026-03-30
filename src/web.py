@@ -5,6 +5,7 @@ from pathlib import Path
 from flask import Flask, render_template, request
 
 from src.collector import CollectorError
+from src.leaderboard import load_leaderboard
 from src.player_source import resolve_player_row
 from src.predictor import ApexPredictor, PredictorError
 
@@ -22,12 +23,14 @@ def _format_value(value: float) -> str:
 
 @app.route("/", methods=["GET", "POST"])
 def index():
+    leaderboard = load_leaderboard(limit=50)
     context = {
         "player_name": "",
         "platform": "PC",
         "error": None,
         "result": None,
         "player_stats": None,
+        "leaderboard": leaderboard,
     }
 
     if request.method == "POST":

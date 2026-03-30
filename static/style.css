@@ -206,6 +206,54 @@ button:hover {
     min-height: 86px;
 }
 
+.leaderboard-head h2 {
+    margin: 0;
+    font-family: "Bebas Neue", sans-serif;
+    letter-spacing: 0.05em;
+    font-size: 1.9rem;
+}
+
+.leaderboard-head p {
+    margin: 0.45rem 0 1rem;
+    color: var(--ink-soft);
+}
+
+.leaderboard-wrap {
+    overflow: auto;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: rgba(5, 17, 26, 0.72);
+}
+
+.leaderboard-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 760px;
+}
+
+.leaderboard-table th,
+.leaderboard-table td {
+    text-align: left;
+    padding: 0.62rem 0.72rem;
+    border-bottom: 1px solid var(--line);
+    font-size: 0.94rem;
+}
+
+.leaderboard-table th {
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.76rem;
+}
+
+.leaderboard-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.leaderboard-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
 @keyframes riseIn {
     from {
         opacity: 0;

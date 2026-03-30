@@ -103,6 +103,46 @@
             </div>
             {% endif %}
         </section>
+
+        <section class="card">
+            <div class="leaderboard-head">
+                <h2>Global Top 50 Leaderboard</h2>
+                <p>Top hraci jako inspirace pro vyhledavani a porovnani. Data jsou sestavena z API + fallback datasetu.</p>
+            </div>
+
+            {% if leaderboard %}
+            <div class="leaderboard-wrap">
+                <table class="leaderboard-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Hrac</th>
+                            <th>Rank</th>
+                            <th>Rank score</th>
+                            <th>Damage/game</th>
+                            <th>KDR</th>
+                            <th>Wins</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in leaderboard %}
+                        <tr>
+                            <td>{{ row.position }}</td>
+                            <td>{{ row.player }}</td>
+                            <td>{{ row.rank }}</td>
+                            <td>{{ row.rank_score }}</td>
+                            <td>{{ row.damage_per_game }}</td>
+                            <td>{{ row.kdr }}</td>
+                            <td>{{ row.wins }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="status error">Leaderboard nema data. Spust build script pro top hrace.</div>
+            {% endif %}
+        </section>
     </main>
 </body>
 </html>

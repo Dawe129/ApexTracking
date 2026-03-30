@@ -5,6 +5,7 @@ Projekt sbira statistiky hracu z mozambiquehe.re API a pomoci strojoveho uceni p
 - Rank hrace (Bronze -> Predator) - klasifikace
 - Damage per game - regrese
 - Doporucenou mapu, legendu, drop lokaci, roli a herni styl
+- Global Top 50 leaderboard (API + fallback dataset)
 
 Dataset v data/players_ready.csv je sjednoceny do jednoho souboru a jmena byla normalizovana (bez sufixu _sim).
 
@@ -160,6 +161,20 @@ Kontrola poctu zaznamu:
 Pak otevri:
 
 - http://127.0.0.1:5000/
+
+## Leaderboard (Top 50)
+
+Pro vytvoreni zebricky top hracu (aspon 50 zaznamu):
+
+```powershell
+& $py -m src.build_leaderboard --seed data/top_players_seed.txt --out data/leaderboard_top.csv --target 50 --platform PC
+```
+
+Co to dela:
+
+- zkusi stahnout hrace ze seed listu pres API
+- kdyz API vrati mene hracu, doplni zbytek z data/players_ready.csv
+- vystup ulozi do data/leaderboard_top.csv
 
 Dulezite: pouzij http, ne https.
 
