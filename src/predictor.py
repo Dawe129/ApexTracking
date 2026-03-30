@@ -91,12 +91,34 @@ class ApexPredictor:
             "combat_style": combat_style,
         }
 
+    def _calibrate_damage_prediction(self, raw_pred: float, player_row: Dict[str, Any]) -> float:
+        # Keep prediction in a realistic range and anchor it to observed stats when available.
+        raw = max(0.0, float(raw_pred))
+
+        observed = self._as_float(player_row.get("damage_per_game"), 0.0)
+        if observed <= 0:
+            total_damage = self._as_float(player_row.get("damage"), 0.0)
+            games_played = self._as_float(player_row.get("games_played"), 0.0)
+            if total_damage > 0 and games_played > 0:
+                observed = total_damage / games_played
+
+        if observed > 0:
+            observed = min(max(observed, 0.0), 4000.0)
+            diff_ratio = abs(raw - observed) / max(observed, 1.0)
+            weight_observed = 0.75 if diff_ratio > 1.0 else 0.60
+            calibrated = weight_observed * observed + (1.0 - weight_observed) * raw
+        else:
+            calibrated = raw
+
+        return min(max(calibrated, 0.0), 4000.0)
+
     def predict(self, player_row: Dict[str, Any]) -> Dict[str, Any]:
         X = self._build_features(player_row)
 
         rank_idx = int(self.rank_model.predict(X)[0])
         rank_name = self.label_encoder.inverse_transform(np.array([rank_idx]))[0]
         damage_pred = float(self.damage_model.predict(X)[0])
+        damage_pred = self._calibrate_damage_prediction(damage_pred, player_row)
 
         return {
             "predicted_rank": rank_name,
