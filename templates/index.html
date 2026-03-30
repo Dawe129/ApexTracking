@@ -20,8 +20,111 @@
             <p class="lead">Zadej hrace a aplikace vypocte predikovany rank, damage per game a doporuci mapu, legendu, drop lokaci i herni roli.</p>
         </section>
 
+        {% if auth_error %}
+        <div class="status error">{{ auth_error }}</div>
+        {% endif %}
+        {% if auth_message %}
+        <div class="status ok">{{ auth_message }}</div>
+        {% endif %}
+        {% if error %}
+        <div class="status error">{{ error }}</div>
+        {% endif %}
+
+        {% if ui_mode == 'auth' %}
         <section class="card">
+            <div class="leaderboard-head">
+                <h2>Ucetsky Rezim</h2>
+                <p>Prihlas se, registruj se, nebo pokracuj jako guest. Predikce a hledani se odemknou az po zvoleni rezimu.</p>
+            </div>
+
+            <div class="auth-grid">
+                <form method="post" class="form">
+                    <input type="hidden" name="form_action" value="login">
+                    <label for="email_login">E-mail</label>
+                    <input id="email_login" name="email" type="email" placeholder="tvuj@email.cz" required>
+                    <label for="password_login">Heslo</label>
+                    <input id="password_login" name="password" type="password" required>
+                    <button type="submit">Prihlasit se</button>
+                </form>
+
+                <form method="post" class="form">
+                    <input type="hidden" name="form_action" value="register">
+                    <label for="email_register">Novy e-mail</label>
+                    <input id="email_register" name="email" type="email" placeholder="novy@email.cz" required>
+                    <label for="password_register">Heslo (min. 6)</label>
+                    <input id="password_register" name="password" type="password" minlength="6" required>
+                    <button type="submit">Registrovat</button>
+                </form>
+            </div>
+
+            <form method="post" class="inline-form">
+                <input type="hidden" name="form_action" value="guest">
+                <button type="submit" class="ghost-btn">Pokracovat jako guest</button>
+            </form>
+        </section>
+        {% endif %}
+
+        {% if ui_mode == 'user' %}
+        <section class="card">
+            <div class="leaderboard-head">
+                <h2>Moje Konto</h2>
+                <p>Spravuj svuj Apex profil a spoust predikci primo pro svuj ucet.</p>
+            </div>
+            <div class="account-chip">Prihlasen: <strong>{{ current_user.email }}</strong></div>
+
+            <div class="auth-grid">
+                <form method="post" class="form">
+                    <input type="hidden" name="form_action" value="save_apex">
+                    <label for="apex_player">Muj Apex nick</label>
+                    <input id="apex_player" name="apex_player" type="text" value="{{ current_user.apex_player }}" placeholder="napr. ImperialHal" required>
+
+                    <label for="apex_platform">Platforma meho uctu</label>
+                    <select id="apex_platform" name="apex_platform">
+                        {% for p in ['PC', 'PS4', 'X1', 'SWITCH'] %}
+                        <option value="{{ p }}" {% if current_user.apex_platform == p %}selected{% endif %}>{{ p }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit">Ulozit muj profil</button>
+                </form>
+
+                <form method="post" class="form">
+                    <input type="hidden" name="form_action" value="predict_my">
+                    <label>Moje rychla akce</label>
+                    <p class="help">Spusti predikci primo na tvem ulozenem Apex profilu.</p>
+                    <button type="submit">Nacist moje statistiky a predikci</button>
+                </form>
+            </div>
+
+            <form method="post" class="inline-form">
+                <input type="hidden" name="form_action" value="logout">
+                <button type="submit" class="ghost-btn">Odhlasit</button>
+            </form>
+        </section>
+        {% endif %}
+
+        {% if ui_mode == 'guest' %}
+        <section class="card">
+            <div class="mode-banner">Guest rezim aktivni: muzes vyhledavat hrace a prohlizet leaderboard.</div>
+            <form method="post" class="inline-form">
+                <input type="hidden" name="form_action" value="logout">
+                <button type="submit" class="ghost-btn">Zpet na prihlaseni</button>
+            </form>
+        </section>
+        {% endif %}
+
+        {% if ui_mode == 'guest' or ui_mode == 'user' %}
+        <section class="card">
+            <div class="leaderboard-head">
+                {% if ui_mode == 'guest' %}
+                <h2>Vyhledani Hracu</h2>
+                <p>Guest rezim umoznuje vyhledavat a predikovat libovolne hrace.</p>
+                {% else %}
+                <h2>Vyhledani Ostatnich Hracu</h2>
+                <p>Tady si muzes vedle sveho profilu vyhledat kohokoliv dalsiho.</p>
+                {% endif %}
+            </div>
             <form method="post" class="form">
+                <input type="hidden" name="form_action" value="predict">
                 <label for="player_name">Jmeno hrace</label>
                 <input id="player_name" name="player_name" type="text" placeholder="napr. ImperialHal" value="{{ player_name }}" required>
 
@@ -34,12 +137,11 @@
 
                 <button type="submit">Predikovat</button>
             </form>
+        </section>
+        {% endif %}
 
-            {% if error %}
-            <div class="status error">{{ error }}</div>
-            {% endif %}
-
-            {% if result %}
+        {% if result %}
+        <section class="card">
             <div class="result-stack">
                 <section class="result">
                 <h2>Predikce Vykonu</h2>
@@ -101,9 +203,45 @@
                 </section>
                 {% endif %}
             </div>
-            {% endif %}
         </section>
+        {% endif %}
 
+        {% if ui_mode == 'user' and history %}
+        <section class="card">
+            <div class="leaderboard-head">
+                <h2>Moje Posledni Predikce</h2>
+                <p>Tady vidis historii vlastnich predikci ulozenou k tvemu uctu.</p>
+            </div>
+            <div class="leaderboard-wrap">
+                <table class="leaderboard-table">
+                    <thead>
+                        <tr>
+                            <th>Cas</th>
+                            <th>Dotaz</th>
+                            <th>Nalezeny hrac</th>
+                            <th>Predikovany rank</th>
+                            <th>Predikovany damage/game</th>
+                            <th>Zdroj</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in history %}
+                        <tr>
+                            <td>{{ row.created_at }}</td>
+                            <td>{{ row.queried_player }}</td>
+                            <td>{{ row.resolved_player }}</td>
+                            <td>{{ row.predicted_rank }}</td>
+                            <td>{{ "%.2f"|format(row.predicted_damage_per_game) }}</td>
+                            <td>{{ row.source }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        {% endif %}
+
+        {% if ui_mode == 'guest' or ui_mode == 'user' %}
         <section class="card">
             <div class="leaderboard-head">
                 <h2>Global Top 50 Leaderboard</h2>
@@ -143,6 +281,7 @@
             <div class="status error">Leaderboard nema data. Spust build script pro top hrace.</div>
             {% endif %}
         </section>
+        {% endif %}
     </main>
 </body>
 </html>

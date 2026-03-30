@@ -151,6 +151,63 @@ button:hover {
     background: rgba(255, 91, 91, 0.12);
 }
 
+.status.ok {
+    color: #d4ffe8;
+    border-color: rgba(93, 231, 164, 0.4);
+    background: rgba(93, 231, 164, 0.12);
+}
+
+.status.guest {
+    color: #ffeec4;
+    border-color: rgba(255, 210, 74, 0.4);
+    background: rgba(255, 210, 74, 0.12);
+}
+
+.account-chip {
+    margin-bottom: 0.85rem;
+    color: var(--ink-soft);
+}
+
+.auth-grid {
+    display: grid;
+    gap: 0.8rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.inline-form {
+    margin-top: 0.8rem;
+}
+
+.help {
+    margin: 0;
+    color: var(--ink-soft);
+    font-size: 0.9rem;
+}
+
+.mode-banner {
+    color: var(--ink-soft);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 0.75rem 0.85rem;
+    background: rgba(5, 17, 26, 0.72);
+}
+
+.ghost-btn {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line);
+}
+
+.ghost-btn:hover {
+    filter: brightness(1.1);
+}
+
+button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+}
+
 .result {
     margin-top: 1rem;
 }
@@ -299,6 +356,10 @@ button:hover {
     }
 
     .main-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .auth-grid {
         grid-template-columns: 1fr;
     }
 }

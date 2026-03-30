@@ -73,6 +73,8 @@ def fetch_player_stats(player: str, api_key: str, platform: str = "PC", timeout:
         "auth": api_key,
         "player": player,
         "platform": platform,
+        # Ask API for merged legend trackers, often needed for usable total stats.
+        "merge": "true",
     }
 
     try:
@@ -96,6 +98,7 @@ def fetch_player_stats_by_uid(uid: str, api_key: str, platform: str = "PC", time
         "auth": api_key,
         "uid": uid,
         "platform": platform,
+        "merge": "true",
     }
 
     try:
@@ -136,6 +139,27 @@ def player_to_row(payload: Dict[str, Any], requested_name: str = "") -> Dict[str
         fallback=0.0,
     )
     wins = _extract_first_value(total_stats, paths=[["wins"], ["matcheswon"], ["matches_won"]], fallback=0.0)
+    kd_from_total = _extract_first_value(total_stats, paths=[["kd"], ["kdr"]], fallback=0.0)
+
+    # Some profiles expose tracker values only on selected legend, not in top-level total.
+    if kills <= 0:
+        kills = _extract_selected_legend_tracker_value(payload, tracker_tokens=["kill"])
+    if wins <= 0:
+        wins = _extract_selected_legend_tracker_value(payload, tracker_tokens=["win"])
+
+    # Some API profiles hide games played, but expose KD. Recover games from kills/KD.
+    if games_played <= 0 and kills > 0 and kd_from_total > 0:
+        games_played = kills / kd_from_total
+
+    # API may return kd = -1 and no games. Use a conservative fallback estimate so
+    # derived metrics are not collapsed to zero (helps own-account predictions).
+    if games_played <= 0 and (kills > 0 or damage > 0):
+        games_played = max(
+            level * 8.0,
+            kills,
+            wins * 15.0,
+            1.0,
+        )
 
     kdr = kills / games_played if games_played > 0 else 0.0
     damage_per_game = damage / games_played if games_played > 0 else 0.0
@@ -155,6 +179,43 @@ def player_to_row(payload: Dict[str, Any], requested_name: str = "") -> Dict[str
         "kdr": kdr,
         "damage_per_game": damage_per_game,
     }
+
+
+def _extract_selected_legend_tracker_value(payload: Dict[str, Any], tracker_tokens: List[str]) -> float:
+    legends = payload.get("legends") if isinstance(payload, dict) else None
+    if not isinstance(legends, dict):
+        return 0.0
+
+    selected = legends.get("selected")
+    if not isinstance(selected, dict):
+        return 0.0
+
+    data = selected.get("data")
+    if not isinstance(data, list):
+        return 0.0
+
+    best = 0.0
+    tokens = [t.lower() for t in tracker_tokens]
+
+    for entry in data:
+        if not isinstance(entry, dict):
+            continue
+
+        label = " ".join(
+            [
+                str(entry.get("name", "")),
+                str(entry.get("key", "")),
+                str(entry.get("keyName", "")),
+            ]
+        ).lower()
+        if not any(token in label for token in tokens):
+            continue
+
+        value = _coerce_float(entry.get("value"), default=0.0)
+        if value > best:
+            best = value
+
+    return best
 
 
 def row_nonzero_metric_count(row: Dict[str, Any]) -> int:
