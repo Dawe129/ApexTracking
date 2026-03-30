@@ -213,6 +213,41 @@
                 </div>
                 </section>
                 {% endif %}
+
+                {% if result.recent_games %}
+                <section class="result">
+                <h2>Poslednich 5 Her</h2>
+                {% if result.recent_games_kind == 'estimate' %}
+                <p class="help">Historie zapasu z API nebyla dostupna, proto jde o odhad podle aktualnich statistik.</p>
+                {% else %}
+                <p class="help">Prehled poslednich zapasu z dostupnych API dat.</p>
+                {% endif %}
+                <div class="leaderboard-wrap">
+                    <table class="leaderboard-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Vysledek</th>
+                                <th>Placement</th>
+                                <th>Kills</th>
+                                <th>Damage</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for g in result.recent_games %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>{{ g.outcome }}</td>
+                                <td>{{ g.placement }}</td>
+                                <td>{{ g.kills }}</td>
+                                <td>{{ g.damage }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                </section>
+                {% endif %}
             </div>
         </section>
         {% endif %}

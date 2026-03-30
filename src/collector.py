@@ -43,6 +43,49 @@ def _extract_first_value(data: Dict[str, Any], paths: List[List[str]], fallback:
     return fallback
 
 
+def _extract_recent_matches(payload: Dict[str, Any], limit: int = 5) -> List[Dict[str, Any]]:
+    if not isinstance(payload, dict):
+        return []
+
+    candidates: List[Any] = []
+    for key in ["matches", "match_history", "history", "recent_matches", "gameHistory"]:
+        value = payload.get(key)
+        if isinstance(value, list):
+            candidates.extend(value)
+
+    if not candidates:
+        global_stats = payload.get("global")
+        if isinstance(global_stats, dict):
+            for key in ["matches", "match_history", "history", "recent_matches", "gameHistory"]:
+                value = global_stats.get(key)
+                if isinstance(value, list):
+                    candidates.extend(value)
+
+    out: List[Dict[str, Any]] = []
+    for item in candidates:
+        if not isinstance(item, dict):
+            continue
+
+        placement = int(_coerce_float(item.get("placement") or item.get("place") or item.get("rank"), default=0))
+        kills = int(_coerce_float(item.get("kills") or item.get("kill_count"), default=0))
+        damage = _coerce_float(item.get("damage") or item.get("damageDealt"), default=0.0)
+
+        if placement <= 0:
+            placement = 20
+
+        out.append(
+            {
+                "placement": placement,
+                "kills": max(0, kills),
+                "damage": max(0.0, damage),
+                "outcome": "Win" if placement == 1 else ("Top 5" if placement <= 5 else "Mid/Late"),
+                "source": "api",
+            }
+        )
+
+    return out[:limit]
+
+
 def load_api_key() -> str:
     """Loads API key from env vars or a plain value in .env."""
     load_dotenv()
@@ -178,6 +221,7 @@ def player_to_row(payload: Dict[str, Any], requested_name: str = "") -> Dict[str
         "wins": wins,
         "kdr": kdr,
         "damage_per_game": damage_per_game,
+        "recent_matches": _extract_recent_matches(payload, limit=5),
     }
 
 
