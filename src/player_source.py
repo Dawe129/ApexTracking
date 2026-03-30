@@ -5,6 +5,7 @@ from typing import Any, Dict, Tuple
 
 import pandas as pd
 
+from src.auth_store import get_cached_player_row, upsert_cached_player_row
 from src.collector import CollectorError, fetch_player_stats, load_api_key, player_to_row
 
 
@@ -57,6 +58,13 @@ def _resolve_api_row(player_name: str, platform: str) -> Tuple[Dict[str, Any], s
     api_key = load_api_key()
     payload = fetch_player_stats(player=player_name, api_key=api_key, platform=platform)
     row = player_to_row(payload, requested_name=player_name)
+
+    try:
+        upsert_cached_player_row(player_name=player_name, platform=platform, row_data=row)
+    except RuntimeError:
+        # DB may be unavailable in standalone scripts; prediction should still continue.
+        pass
+
     return row, "api"
 
 
@@ -76,11 +84,31 @@ def resolve_player_row(
     if mode == "api":
         return _resolve_api_row(player_name, platform)
 
+    if mode == "db":
+        try:
+            cached = get_cached_player_row(player_name=player_name, platform=platform)
+        except RuntimeError as exc:
+            raise CollectorError("DB cache neni inicializovana.") from exc
+
+        if cached is None:
+            raise CollectorError(f"Hrac '{player_name}' nebyl nalezen v DB cache.")
+        return _normalize_row(cached), "db"
+
     if mode != "auto":
         raise CollectorError(f"Neznamy rezim zdroje dat: {source_mode}")
 
-    local_row = _find_local_player_row(player_name)
-    if local_row is not None:
-        return local_row, "local"
+    try:
+        cached = get_cached_player_row(player_name=player_name, platform=platform)
+    except RuntimeError:
+        cached = None
 
-    return _resolve_api_row(player_name, platform)
+    if cached is not None:
+        return _normalize_row(cached), "db"
+
+    try:
+        return _resolve_api_row(player_name, platform)
+    except CollectorError:
+        local_row = _find_local_player_row(player_name)
+        if local_row is not None:
+            return local_row, "local"
+        raise

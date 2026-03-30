@@ -21,7 +21,8 @@ Hotovo:
 
 Pouzivana cesta je:
 
-- data/players.csv -> treninkova data
+- data/players.csv -> treninkova data (staticky podklad pro ucitele/GitHub)
+- data/app.db -> lokalni SQLite DB pro live cache hracu a uzivatelska data
 - model/model.pkl -> model pro predikce
 
 Manualni vstup podle jmen je volitelny (soubor data/players_input.txt si pripadne vytvor sam).
@@ -178,11 +179,17 @@ Co to dela:
 
 Dulezite: pouzij http, ne https.
 
-Poznamka k vyhledani hrace:
+Poznamka k vyhledani hrace (AUTO rezim):
 
-- aplikace nejdriv zkusi live API
-- kdyz API hrace nenajde, zkusi lokalni soubory data/players_ready.csv a data/players.csv
-- to umoznuje predikci i pro synteticka jmena (napr. Rex_sim10589)
+- aplikace nejdriv zkusi nacist hrace z lokalni SQLite cache (data/app.db)
+- pokud hrac v cache neni, stahne aktualni data z API a ulozi je do cache
+- kdyz API neni dostupne, pouzije fallback lokalni soubory data/players_ready.csv a data/players.csv
+
+Tento flow znamena:
+
+- prvni dotaz na hrace je live (API)
+- dalsi dotazy na stejne jmeno/platformu jsou rychlejsi z DB cache
+- predikce stale bezi pres model/model.pkl
 
 ### Konzole (volitelne)
 

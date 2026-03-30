@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -40,6 +41,19 @@ def init_db(db_path: Path) -> None:
                 source TEXT NOT NULL,
                 created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(user_id) REFERENCES users(id)
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS player_cache (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                player_key TEXT NOT NULL,
+                platform TEXT NOT NULL,
+                row_json TEXT NOT NULL,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(player_key, platform)
             )
             """
         )
@@ -179,3 +193,49 @@ def get_recent_predictions(user_id: int, limit: int = 15) -> List[Dict[str, Any]
         )
 
     return out
+
+
+def get_cached_player_row(player_name: str, platform: str) -> Optional[Dict[str, Any]]:
+    player_key = player_name.strip().lower()
+    plat = (platform or "PC").strip().upper() or "PC"
+    if not player_key:
+        return None
+
+    with _connect() as conn:
+        row = conn.execute(
+            """
+            SELECT row_json
+            FROM player_cache
+            WHERE player_key = ? AND platform = ?
+            """,
+            (player_key, plat),
+        ).fetchone()
+
+    if row is None:
+        return None
+
+    payload = json.loads(str(row["row_json"]))
+    if not isinstance(payload, dict):
+        return None
+    return payload
+
+
+def upsert_cached_player_row(player_name: str, platform: str, row_data: Dict[str, Any]) -> None:
+    player_key = player_name.strip().lower()
+    plat = (platform or "PC").strip().upper() or "PC"
+    if not player_key:
+        return
+
+    row_json = json.dumps(dict(row_data), ensure_ascii=True)
+
+    with _connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO player_cache (player_key, platform, row_json, updated_at)
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(player_key, platform) DO UPDATE SET
+                row_json = excluded.row_json,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (player_key, plat, row_json),
+        )

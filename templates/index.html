@@ -10,6 +10,10 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+    {% macro hint(text) -%}
+    <span class="stat-hint" tabindex="0" aria-label="Napoveda" data-tip="{{ text }}" title="{{ text }}">i</span>
+    {%- endmacro %}
+
     <div class="bg-shape bg-shape-a"></div>
     <div class="bg-shape bg-shape-b"></div>
 
@@ -104,7 +108,10 @@
 
         {% if ui_mode == 'guest' %}
         <section class="card">
-            <div class="mode-banner">Guest rezim aktivni: muzes vyhledavat hrace a prohlizet leaderboard.</div>
+            <div class="mode-banner" role="status" aria-live="polite">
+                <strong>Guest rezim aktivni</strong>
+                <p>Muzes vyhledavat hrace a prohlizet leaderboard bez prihlaseni.</p>
+            </div>
             <form method="post" class="inline-form">
                 <input type="hidden" name="form_action" value="logout">
                 <button type="submit" class="ghost-btn">Zpet na prihlaseni</button>
@@ -147,19 +154,19 @@
                 <h2>Predikce Vykonu</h2>
                 <div class="result-grid main-grid">
                     <article>
-                        <span>Hrac</span>
+                        <span>Hrac {{ hint('Jmeno profilu, ze ktereho se nacetla data pro predikci.') }}</span>
                         <strong>{{ result.player }}</strong>
                     </article>
                     <article>
-                        <span>Predikovany rank</span>
+                        <span>Predikovany rank {{ hint('Odhadovana hodnost podle modelu na zaklade dostupnych statistik.') }}</span>
                         <strong>{{ result.rank }}</strong>
                     </article>
                     <article>
-                        <span>Predikovany damage/game</span>
+                        <span>Predikovany damage/game {{ hint('Prumerny damage, ktery model odhaduje na jeden zapas.') }}</span>
                         <strong>{{ result.damage_per_game }}</strong>
                     </article>
                     <article>
-                        <span>Zdroj dat</span>
+                        <span>Zdroj dat {{ hint('AUTO zvoli API, kdyz jsou data dostupna, jinak lokalni fallback dataset.') }}</span>
                         <strong>{{ result.source }}</strong>
                     </article>
                 </div>
@@ -169,23 +176,23 @@
                 <h2>Doporuceny Setup</h2>
                 <div class="result-grid">
                     <article>
-                        <span>Nejvhodnejsi mapa</span>
+                        <span>Nejvhodnejsi mapa {{ hint('Mapa, kde by mel byt podle modelu nejlepsi pomer bezpeci a efektivity boje.') }}</span>
                         <strong>{{ result.best_map }}</strong>
                     </article>
                     <article>
-                        <span>Nejvhodnejsi legenda</span>
+                        <span>Nejvhodnejsi legenda {{ hint('Legenda vybrana podle profilu hrace, predikovaneho ranku a stylu hry.') }}</span>
                         <strong>{{ result.best_legend }}</strong>
                     </article>
                     <article>
-                        <span>Nejvhodnejsi drop lokace</span>
+                        <span>Nejvhodnejsi drop lokace {{ hint('Doporucene misto vysadku pro stabilni zacatek kola a loot.') }}</span>
                         <strong>{{ result.best_drop_zone }}</strong>
                     </article>
                     <article>
-                        <span>Doporucena role</span>
+                        <span>Doporucena role {{ hint('Role v teamu, ktera nejvic sedi tvym statistikam a tempu hry.') }}</span>
                         <strong>{{ result.ideal_team_role }}</strong>
                     </article>
                     <article>
-                        <span>Herni styl</span>
+                        <span>Herni styl {{ hint('Shrnuti doporuceneho pristupu v zapasech: tempo, riziko a prioritni rozhodnuti.') }}</span>
                         <strong>{{ result.combat_style }}</strong>
                     </article>
                 </div>
@@ -195,10 +202,10 @@
                 <section class="result">
                 <h2>Vstupni Statistiky</h2>
                 <div class="stats-grid">
-                    <article><span>Level</span><strong>{{ player_stats.level }}</strong></article>
-                    <article><span>Rank score</span><strong>{{ player_stats.rank_score }}</strong></article>
-                    <article><span>Kills</span><strong>{{ player_stats.kills }}</strong></article>
-                    <article><span>Wins</span><strong>{{ player_stats.wins }}</strong></article>
+                    <article><span>Level {{ hint('Celkovy level Apex uctu, orientacni ukazatel odehrane doby.') }}</span><strong>{{ player_stats.level }}</strong></article>
+                    <article><span>Rank score {{ hint('Body v rank rezimu, ktere urcuji aktualni pozici mezi ranky.') }}</span><strong>{{ player_stats.rank_score }}</strong></article>
+                    <article><span>Kills {{ hint('Celkovy pocet zabiti evidovany na profilu.') }}</span><strong>{{ player_stats.kills }}</strong></article>
+                    <article><span>Wins {{ hint('Celkovy pocet vyher evidovany na profilu.') }}</span><strong>{{ player_stats.wins }}</strong></article>
                 </div>
                 </section>
                 {% endif %}
@@ -216,12 +223,12 @@
                 <table class="leaderboard-table">
                     <thead>
                         <tr>
-                            <th>Cas</th>
-                            <th>Dotaz</th>
-                            <th>Nalezeny hrac</th>
-                            <th>Predikovany rank</th>
-                            <th>Predikovany damage/game</th>
-                            <th>Zdroj</th>
+                            <th>Cas {{ hint('Cas ulozeni predikce do tve historie.') }}</th>
+                            <th>Dotaz {{ hint('Jmeno, ktere jsi zadal do vyhledavani.') }}</th>
+                            <th>Nalezeny hrac {{ hint('Konecny profil, ktery byl pouzit po zpracovani dotazu.') }}</th>
+                            <th>Predikovany rank {{ hint('Rank odhadnuty modelem v danem okamziku.') }}</th>
+                            <th>Predikovany damage/game {{ hint('Odhad prumerneho damage na zapas od modelu.') }}</th>
+                            <th>Zdroj {{ hint('Informace, jestli data prisla z API nebo lokalniho fallbacku.') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -255,11 +262,11 @@
                         <tr>
                             <th>#</th>
                             <th>Hrac</th>
-                            <th>Rank</th>
-                            <th>Rank score</th>
-                            <th>Damage/game</th>
-                            <th>KDR</th>
-                            <th>Wins</th>
+                            <th>Rank {{ hint('Aktualni rank nebo nejblizsi odhad rankove tridy hrace.') }}</th>
+                            <th>Rank score {{ hint('Ciselna hodnota rank postupu, vhodna pro porovnavani hracu.') }}</th>
+                            <th>Damage/game {{ hint('Prumerny damage na zapas, pokud je dostupny v datech.') }}</th>
+                            <th>KDR {{ hint('Kill/Death ratio: pomer zabiti k umrti.') }}</th>
+                            <th>Wins {{ hint('Celkovy pocet vyher zaznamenanych u hrace.') }}</th>
                         </tr>
                     </thead>
                     <tbody>

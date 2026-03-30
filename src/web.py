@@ -105,6 +105,30 @@ def index():
         "ui_mode": ui_mode,
     }
 
+    # One-time auto-load of linked Apex account right after successful login.
+    if request.method == "GET" and user is not None and (user.get("apex_player") or "").strip():
+        should_autoload = bool(session.pop("autoload_my_account", False))
+        if should_autoload:
+            own_player = (user.get("apex_player") or "").strip()
+            own_platform = (user.get("apex_platform") or "PC").strip().upper()
+            try:
+                result, player_stats, damage_raw = _run_prediction(own_player, own_platform)
+                context["player_name"] = own_player
+                context["platform"] = own_platform
+                context["result"] = result
+                context["player_stats"] = player_stats
+                save_user_prediction(
+                    user_id=user["id"],
+                    queried_player=own_player,
+                    resolved_player=result["player"],
+                    predicted_rank=result["rank"],
+                    predicted_damage_per_game=damage_raw,
+                    source=result["source"],
+                )
+                context["history"] = get_recent_predictions(user["id"], limit=12)
+            except (CollectorError, PredictorError, OSError, ValueError) as exc:
+                context["error"] = str(exc)
+
     if request.method == "POST":
         form_action = (request.form.get("form_action") or "predict").strip().lower()
 
@@ -132,6 +156,7 @@ def index():
 
             session["user_id"] = logged["id"]
             session.pop("guest", None)
+            session["autoload_my_account"] = True
             return redirect(url_for("index"))
 
         if form_action == "guest":
