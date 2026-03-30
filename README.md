@@ -20,7 +20,7 @@ Pouzivana cesta je:
 - data/players.csv -> treninkova data
 - model/model.pkl -> model pro predikce
 
-Soubor data/players_input.txt je jen volitelny manualni vstup pro collector podle jmen.
+Manualni vstup podle jmen je volitelny (soubor data/players_input.txt si pripadne vytvor sam).
 
 ## Quick Start (Doporuceno)
 
@@ -70,8 +70,7 @@ ApexTracking/
   - app.py            (CLI verze)
 - data/
   - players.csv
-  - players_input.txt
-  - players_unique_test.csv (testovaci soubor, neni nutny)
+  - players_ready.csv
 - model/
   - model.pkl
 - templates/
@@ -108,7 +107,7 @@ Alternativne muzes mit v .env jen samotny klic na prvnim radku.
 
 ### Varianta A - manualni seznam jmen
 
-Pouziva data/players_input.txt (1 jmeno na radek):
+Nejdriv vytvor data/players_input.txt (1 jmeno na radek), potom spust:
 
 ```powershell
 & $py -m src.collector --players-file data/players_input.txt --out data/players.csv --platform PC
@@ -160,6 +159,12 @@ Pak otevri:
 - http://127.0.0.1:5000/
 
 Dulezite: pouzij http, ne https.
+
+Poznamka k vyhledani hrace:
+
+- aplikace nejdriv zkusi live API
+- kdyz API hrace nenajde, zkusi lokalni soubory data/players_ready.csv a data/players.csv
+- to umoznuje predikci i pro synteticka jmena (napr. Rex_sim10589)
 
 ### Konzole (volitelne)
 

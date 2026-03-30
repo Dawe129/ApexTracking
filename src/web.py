@@ -4,7 +4,8 @@ from pathlib import Path
 
 from flask import Flask, render_template, request
 
-from src.collector import CollectorError, fetch_player_stats, load_api_key, player_to_row
+from src.collector import CollectorError
+from src.player_source import resolve_player_row
 from src.predictor import ApexPredictor, PredictorError
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -41,9 +42,7 @@ def index():
             return render_template("index.html", **context)
 
         try:
-            api_key = load_api_key()
-            payload = fetch_player_stats(player=player_name, api_key=api_key, platform=platform)
-            row = player_to_row(payload, requested_name=player_name)
+            row, source = resolve_player_row(player_name=player_name, platform=platform)
 
             predictor = ApexPredictor("model/model.pkl")
             pred = predictor.predict(row)
@@ -52,6 +51,7 @@ def index():
                 "player": row["player"],
                 "rank": pred["predicted_rank"],
                 "damage_per_game": _format_value(pred["predicted_damage_per_game"]),
+                "source": source,
             }
             context["player_stats"] = {
                 "level": int(row.get("level", 0)),

@@ -17,7 +17,7 @@
         <section class="hero">
             <p class="eyebrow">Apex Legends ML</p>
             <h1>Tracker & Predikce</h1>
-            <p class="lead">Zadej hrace, stahni jeho statistiky z API a okamzite ziskej predikovany rank a damage per game.</p>
+            <p class="lead">Zadej hrace a ziskej predikovany rank i damage per game. Kdyz API hrace nenajde, aplikace zkusi lokalni dataset.</p>
         </section>
 
         <section class="card">
@@ -54,6 +54,10 @@
                     <article>
                         <span>Predikovany damage/game</span>
                         <strong>{{ result.damage_per_game }}</strong>
+                    </article>
+                    <article>
+                        <span>Zdroj dat</span>
+                        <strong>{{ result.source }}</strong>
                     </article>
                 </div>
 
