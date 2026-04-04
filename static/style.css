@@ -1,18 +1,18 @@
 :root {
-    --bg: #f4f6fb;
-    --surface: #ffffff;
-    --surface-soft: #f8fafc;
-    --ink: #16202c;
-    --ink-soft: #5f6f82;
-    --line: #dbe4ee;
-    --primary: #1f6feb;
+    --bg: #090909;
+    --surface: #131313;
+    --surface-soft: #1a1a1a;
+    --ink: #f3f3f3;
+    --ink-soft: #b6b6b6;
+    --line: #2d2d2d;
+    --primary: #cf162d;
     --primary-ink: #ffffff;
-    --ok-bg: #ecfdf3;
-    --ok-line: #9fdfbb;
-    --ok-ink: #0f5132;
-    --err-bg: #fff1f2;
-    --err-line: #f5b2bb;
-    --err-ink: #7f1d1d;
+    --ok-bg: #0f1b12;
+    --ok-line: #2f6b3f;
+    --ok-ink: #9fd8ad;
+    --err-bg: #2a0e12;
+    --err-line: #7f1f2c;
+    --err-ink: #ffb8c1;
 }
 
 * {
@@ -24,7 +24,9 @@ body {
     min-height: 100vh;
     font-family: "Space Grotesk", sans-serif;
     color: var(--ink);
-    background: var(--bg);
+    background: radial-gradient(circle at 18% 2%, rgba(207, 22, 45, 0.22), transparent 38%),
+        radial-gradient(circle at 80% 110%, rgba(207, 22, 45, 0.16), transparent 34%),
+        var(--bg);
 }
 
 .bg-shape {
@@ -32,8 +34,9 @@ body {
 }
 
 .layout {
-    width: min(1080px, calc(100% - 2rem));
-    margin: 1.5rem auto 2rem;
+    width: calc(100% - 1rem);
+    max-width: none;
+    margin: 0.5rem auto 1rem;
     display: grid;
     gap: 1rem;
 }
@@ -42,7 +45,7 @@ body {
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 14px;
-    padding: 1.1rem 1.2rem;
+    padding: 1.2rem 1.35rem;
 }
 
 .eyebrow {
@@ -72,7 +75,8 @@ h1 {
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 14px;
-    padding: 1rem;
+    padding: 1rem 1.1rem;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
 }
 
 .form {
@@ -104,7 +108,7 @@ select {
 input:focus,
 select:focus,
 button:focus {
-    outline: 2px solid #9ec5ff;
+    outline: 2px solid rgba(207, 22, 45, 0.72);
     outline-offset: 1px;
 }
 
@@ -130,7 +134,7 @@ button:hover {
 }
 
 .ghost-btn:hover {
-    background: #f1f5f9;
+    background: #1e1e1e;
 }
 
 .status {
@@ -254,31 +258,39 @@ button:hover {
 .leaderboard-wrap {
     border: 1px solid var(--line);
     border-radius: 10px;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
     background: var(--surface);
 }
 
 .leaderboard-table {
     width: 100%;
     border-collapse: collapse;
-    table-layout: fixed;
+    table-layout: auto;
+    min-width: 900px;
 }
 
 .leaderboard-table th,
 .leaderboard-table td {
-    padding: 0.58rem 0.62rem;
-    border-bottom: 1px solid #e8eef5;
+    padding: 0.62rem 0.65rem;
+    border-bottom: 1px solid #242424;
     text-align: left;
     font-size: 0.9rem;
-    vertical-align: top;
+    vertical-align: middle;
+    white-space: nowrap;
 }
 
 .leaderboard-table th {
-    background: #f4f8fc;
-    color: #4f6479;
+    background: #171717;
+    color: #c6c6c6;
     font-size: 0.74rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+}
+
+.leaderboard-table th:nth-child(2),
+.leaderboard-table td:nth-child(2) {
+    min-width: 220px;
 }
 
 .leaderboard-table tbody tr:last-child td {
@@ -293,9 +305,9 @@ button:hover {
     width: 1rem;
     height: 1rem;
     border-radius: 999px;
-    border: 1px solid #b8c6d6;
-    background: #eef4fb;
-    color: #3f5670;
+    border: 1px solid #4b4b4b;
+    background: #222;
+    color: #cfcfcf;
     font-size: 0.68rem;
     font-weight: 700;
     cursor: help;
@@ -308,8 +320,8 @@ button:hover {
     top: calc(100% + 8px);
     transform: translateX(-50%);
     width: min(250px, 70vw);
-    background: #1f2937;
-    color: #f8fafc;
+    background: #0f0f0f;
+    color: #ededed;
     border-radius: 8px;
     padding: 0.45rem 0.55rem;
     font-size: 0.75rem;
@@ -333,8 +345,8 @@ button:disabled {
 
 @media (max-width: 980px) {
     .layout {
-        width: min(1080px, calc(100% - 1.2rem));
-        margin: 1rem auto 1.4rem;
+        width: calc(100% - 0.7rem);
+        margin: 0.4rem auto 0.8rem;
     }
 
     .main-grid {
@@ -350,11 +362,7 @@ button:disabled {
         grid-template-columns: 1fr;
     }
 
-    .leaderboard-wrap {
-        overflow-x: auto;
-    }
-
     .leaderboard-table {
-        min-width: 620px;
+        min-width: 760px;
     }
 }

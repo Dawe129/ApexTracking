@@ -45,7 +45,7 @@
                 <form method="post" class="form">
                     <input type="hidden" name="form_action" value="login">
                     <label for="email_login">E-mail</label>
-                    <input id="email_login" name="email" type="email" placeholder="your@email.com" required>
+                    <input id="email_login" name="email" type="email" placeholder="example@gmail.com" oninvalid="this.setCustomValidity('Please enter a valid e-mail address.')" oninput="this.setCustomValidity('')" required>
                     <label for="password_login">Password</label>
                     <input id="password_login" name="password" type="password" required>
                     <button type="submit">Log In</button>
@@ -54,7 +54,7 @@
                 <form method="post" class="form">
                     <input type="hidden" name="form_action" value="register">
                     <label for="email_register">New e-mail</label>
-                    <input id="email_register" name="email" type="email" placeholder="novy@email.cz" required>
+                    <input id="email_register" name="email" type="email" placeholder="example@gmail.com" oninvalid="this.setCustomValidity('Please enter a valid e-mail address.')" oninput="this.setCustomValidity('')" required>
                     <label for="password_register">Password (min. 6)</label>
                     <input id="password_register" name="password" type="password" minlength="6" required>
                     <button type="submit">Register</button>
