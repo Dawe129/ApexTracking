@@ -225,7 +225,7 @@ def index():
             logged = authenticate_user(email=email, password=password)
             if logged is None:
                 context["auth_mode"] = "login"
-                context["auth_error"] = "Neplatny e-mail nebo heslo."
+                context["auth_error"] = "Invalid e-mail or password."
                 return render_template("index.html", **context)
 
             session["user_id"] = logged["id"]
@@ -255,14 +255,14 @@ def index():
 
         if form_action == "save_apex":
             if user is None:
-                context["auth_error"] = "Nejdriv se prihlas."
+                context["auth_error"] = "Log in first."
                 return render_template("index.html", **context)
 
             apex_player = (request.form.get("apex_player") or "").strip()
             apex_platform = (request.form.get("apex_platform") or "PC").strip().upper()
             try:
                 update_user_apex_profile(user["id"], apex_player=apex_player, apex_platform=apex_platform)
-                context["auth_message"] = "Apex profil byl ulozen."
+                context["auth_message"] = "Apex profile has been saved."
                 user = _load_current_user()
                 context["current_user"] = user
             except ValueError as exc:
@@ -271,13 +271,13 @@ def index():
 
         if form_action == "predict_my":
             if user is None:
-                context["auth_error"] = "Nejdriv se prihlas."
+                context["auth_error"] = "Log in first."
                 return render_template("index.html", **context)
 
             own_player = (user.get("apex_player") or "").strip()
             own_platform = (user.get("apex_platform") or "PC").strip().upper()
             if not own_player:
-                context["auth_error"] = "Nejdriv si uloz svuj Apex profil."
+                context["auth_error"] = "Save your Apex profile first."
                 return render_template("index.html", **context)
 
             try:
@@ -310,11 +310,11 @@ def index():
         context["ui_mode"] = ui_mode
 
         if not can_use_search:
-            context["auth_error"] = "Prihlas se nebo pouzij guest rezim."
+            context["auth_error"] = "Log in or use guest mode."
             return render_template("index.html", **context)
 
         if not player_name:
-            context["error"] = "Vypln jmeno hrace."
+            context["error"] = "Enter a player name."
             return render_template("index.html", **context)
 
         try:

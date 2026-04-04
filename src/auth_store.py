@@ -106,9 +106,9 @@ def _user_row_to_dict(row: Any) -> Dict[str, Any]:
 def create_user(email: str, password: str) -> Dict[str, Any]:
     norm_email = email.strip().lower()
     if not norm_email or "@" not in norm_email:
-        raise ValueError("Zadej platny e-mail.")
+        raise ValueError("Enter a valid e-mail.")
     if len(password) < 6:
-        raise ValueError("Heslo musi mit aspon 6 znaku.")
+        raise ValueError("Password must have at least 6 characters.")
 
     password_hash = generate_password_hash(password)
 
@@ -122,11 +122,11 @@ def create_user(email: str, password: str) -> Dict[str, Any]:
     except Exception as exc:
         msg = str(exc).lower()
         if "duplicate" in msg or "unique" in msg:
-            raise ValueError("Uzivatel s timto e-mailem uz existuje.") from exc
+            raise ValueError("A user with this e-mail already exists.") from exc
         raise
 
     if row is None:
-        raise RuntimeError("Nepodarilo se vytvorit uzivatele.")
+        raise RuntimeError("Failed to create user.")
     return _user_row_to_dict(row)
 
 
@@ -157,9 +157,9 @@ def update_user_apex_profile(user_id: int, apex_player: str, apex_platform: str)
     platform = (apex_platform or "PC").strip().upper() or "PC"
 
     if not player:
-        raise ValueError("Zadej jmeno tvych Apex stats.")
+        raise ValueError("Enter your Apex stats name.")
     if platform not in {"PC", "PS4", "X1", "SWITCH"}:
-        raise ValueError("Neplatna platforma.")
+        raise ValueError("Invalid platform.")
 
     with _connect() as conn:
         conn.execute(

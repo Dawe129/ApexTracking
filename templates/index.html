@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="cs">
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,7 +11,7 @@
 </head>
 <body>
     {% macro hint(text) -%}
-    <span class="stat-hint" tabindex="0" aria-label="Napoveda" data-tip="{{ text }}" title="{{ text }}">i</span>
+    <span class="stat-hint" tabindex="0" aria-label="Help" data-tip="{{ text }}" title="{{ text }}">i</span>
     {%- endmacro %}
 
     <div class="bg-shape bg-shape-a"></div>
@@ -20,8 +20,8 @@
     <main class="layout">
         <section class="hero">
             <p class="eyebrow">Apex Legends ML</p>
-            <h1>Tracker & Smart Doporuceni</h1>
-            <p class="lead">Zadej hrace a aplikace vypocte predikovany rank, damage per game a doporuci mapu, legendu, drop lokaci i herni roli.</p>
+            <h1>Tracker & Smart Recommendations</h1>
+            <p class="lead">Enter a player and the app will predict rank, damage per game, and recommend a map, legend, drop location, and team role.</p>
         </section>
 
         {% if auth_error %}
@@ -37,33 +37,33 @@
         {% if ui_mode == 'auth' %}
         <section class="card">
             <div class="leaderboard-head">
-                <h2>Ucetsky Rezim</h2>
-                <p>Prihlas se, registruj se, nebo pokracuj jako guest. Predikce a hledani se odemknou az po zvoleni rezimu.</p>
+                <h2>Account Mode</h2>
+                <p>Log in, register, or continue as guest. Predictions and search are unlocked after selecting a mode.</p>
             </div>
 
             <div class="auth-grid">
                 <form method="post" class="form">
                     <input type="hidden" name="form_action" value="login">
                     <label for="email_login">E-mail</label>
-                    <input id="email_login" name="email" type="email" placeholder="tvuj@email.cz" required>
-                    <label for="password_login">Heslo</label>
+                    <input id="email_login" name="email" type="email" placeholder="your@email.com" required>
+                    <label for="password_login">Password</label>
                     <input id="password_login" name="password" type="password" required>
-                    <button type="submit">Prihlasit se</button>
+                    <button type="submit">Log In</button>
                 </form>
 
                 <form method="post" class="form">
                     <input type="hidden" name="form_action" value="register">
-                    <label for="email_register">Novy e-mail</label>
+                    <label for="email_register">New e-mail</label>
                     <input id="email_register" name="email" type="email" placeholder="novy@email.cz" required>
-                    <label for="password_register">Heslo (min. 6)</label>
+                    <label for="password_register">Password (min. 6)</label>
                     <input id="password_register" name="password" type="password" minlength="6" required>
-                    <button type="submit">Registrovat</button>
+                    <button type="submit">Register</button>
                 </form>
             </div>
 
             <form method="post" class="inline-form">
                 <input type="hidden" name="form_action" value="guest">
-                <button type="submit" class="ghost-btn">Pokracovat jako guest</button>
+                <button type="submit" class="ghost-btn">Continue as Guest</button>
             </form>
         </section>
         {% endif %}
@@ -71,37 +71,37 @@
         {% if ui_mode == 'user' %}
         <section class="card">
             <div class="leaderboard-head">
-                <h2>Moje Konto</h2>
-                <p>Spravuj svuj Apex profil a spoust predikci primo pro svuj ucet.</p>
+                <h2>My Account</h2>
+                <p>Manage your Apex profile and run predictions directly for your account.</p>
             </div>
-            <div class="account-chip">Prihlasen: <strong>{{ current_user.email }}</strong></div>
+            <div class="account-chip">Logged in: <strong>{{ current_user.email }}</strong></div>
 
             <div class="auth-grid">
                 <form method="post" class="form">
                     <input type="hidden" name="form_action" value="save_apex">
-                    <label for="apex_player">Muj Apex nick</label>
-                    <input id="apex_player" name="apex_player" type="text" value="{{ current_user.apex_player }}" placeholder="napr. ImperialHal" required>
+                    <label for="apex_player">My Apex nickname</label>
+                    <input id="apex_player" name="apex_player" type="text" value="{{ current_user.apex_player }}" placeholder="e.g. ImperialHal" required>
 
-                    <label for="apex_platform">Platforma meho uctu</label>
+                    <label for="apex_platform">My account platform</label>
                     <select id="apex_platform" name="apex_platform">
                         {% for p in ['PC', 'PS4', 'X1', 'SWITCH'] %}
                         <option value="{{ p }}" {% if current_user.apex_platform == p %}selected{% endif %}>{{ p }}</option>
                         {% endfor %}
                     </select>
-                    <button type="submit">Ulozit muj profil</button>
+                    <button type="submit">Save My Profile</button>
                 </form>
 
                 <form method="post" class="form">
                     <input type="hidden" name="form_action" value="predict_my">
-                    <label>Moje rychla akce</label>
-                    <p class="help">Spusti predikci primo na tvem ulozenem Apex profilu.</p>
-                    <button type="submit">Nacist moje statistiky a predikci</button>
+                    <label>My Quick Action</label>
+                    <p class="help">Run a prediction directly on your saved Apex profile.</p>
+                    <button type="submit">Load My Stats and Prediction</button>
                 </form>
             </div>
 
             <form method="post" class="inline-form">
                 <input type="hidden" name="form_action" value="logout">
-                <button type="submit" class="ghost-btn">Odhlasit</button>
+                <button type="submit" class="ghost-btn">Log Out</button>
             </form>
         </section>
         {% endif %}
@@ -109,12 +109,12 @@
         {% if ui_mode == 'guest' %}
         <section class="card">
             <div class="mode-banner" role="status" aria-live="polite">
-                <strong>Guest rezim aktivni</strong>
-                <p>Muzes vyhledavat hrace a prohlizet leaderboard bez prihlaseni.</p>
+                <strong>Guest mode is active</strong>
+                <p>You can search players and view the leaderboard without logging in.</p>
             </div>
             <form method="post" class="inline-form">
                 <input type="hidden" name="form_action" value="logout">
-                <button type="submit" class="ghost-btn">Zpet na prihlaseni</button>
+                <button type="submit" class="ghost-btn">Back to Login</button>
             </form>
         </section>
         {% endif %}
@@ -123,26 +123,26 @@
         <section class="card">
             <div class="leaderboard-head">
                 {% if ui_mode == 'guest' %}
-                <h2>Vyhledani Hracu</h2>
-                <p>Guest rezim umoznuje vyhledavat a predikovat libovolne hrace.</p>
+                <h2>Player Search</h2>
+                <p>Guest mode allows searching and predicting any player.</p>
                 {% else %}
-                <h2>Vyhledani Ostatnich Hracu</h2>
-                <p>Tady si muzes vedle sveho profilu vyhledat kohokoliv dalsiho.</p>
+                <h2>Search Other Players</h2>
+                <p>Besides your own profile, you can search anyone here.</p>
                 {% endif %}
             </div>
             <form method="post" class="form">
                 <input type="hidden" name="form_action" value="predict">
-                <label for="player_name">Jmeno hrace</label>
-                <input id="player_name" name="player_name" type="text" placeholder="napr. ImperialHal" value="{{ player_name }}" required>
+                <label for="player_name">Player name</label>
+                <input id="player_name" name="player_name" type="text" placeholder="e.g. ImperialHal" value="{{ player_name }}" required>
 
-                <label for="platform">Platforma</label>
+                <label for="platform">Platform</label>
                 <select id="platform" name="platform">
                     {% for p in ['PC', 'PS4', 'X1', 'SWITCH'] %}
                     <option value="{{ p }}" {% if platform == p %}selected{% endif %}>{{ p }}</option>
                     {% endfor %}
                 </select>
 
-                <button type="submit">Predikovat</button>
+                <button type="submit">Predict</button>
             </form>
         </section>
         {% endif %}
@@ -151,52 +151,52 @@
         <section class="card">
             <div class="result-stack">
                 <section class="result">
-                <h2>Predikce Vykonu</h2>
+                <h2>Performance Prediction</h2>
                 <div class="result-grid main-grid">
                     <article>
-                        <span>Hrac {{ hint('Jmeno profilu, ze ktereho se nacetla data pro predikci.') }}</span>
+                        <span>Player {{ hint('Profile name from which the prediction data was loaded.') }}</span>
                         <strong>{{ result.player }}</strong>
                     </article>
                     <article>
-                        <span>Predikovany rank {{ hint('Odhadovana hodnost podle modelu na zaklade dostupnych statistik.') }}</span>
+                        <span>Predicted rank {{ hint('Estimated rank based on available stats using the model.') }}</span>
                         <strong>{{ result.rank }}</strong>
                     </article>
                     <article>
-                        <span>Predikovany damage/game {{ hint('Prumerny damage, ktery model odhaduje na jeden zapas.') }}</span>
+                        <span>Predicted damage/game {{ hint('Average damage per match estimated by the model.') }}</span>
                         <strong>{{ result.damage_per_game }}</strong>
                     </article>
                     <article>
-                        <span>Predikovany win rate {{ hint('Odhad procenta vyhranych her pri dlouhodobejsim vzorku zapasu.') }}</span>
+                        <span>Predicted win rate {{ hint('Estimated percentage of won games over a larger sample of matches.') }}</span>
                         <strong>{{ result.win_rate }}</strong>
                     </article>
                     <article>
-                        <span>Zdroj dat {{ hint('AUTO zvoli API, kdyz jsou data dostupna, jinak lokalni fallback dataset.') }}</span>
+                        <span>Data source {{ hint('AUTO uses API data when available, otherwise a local fallback dataset.') }}</span>
                         <strong>{{ result.source }}</strong>
                     </article>
                 </div>
                 </section>
 
                 <section class="result">
-                <h2>Doporuceny Setup</h2>
+                <h2>Recommended Setup</h2>
                 <div class="result-grid">
                     <article>
-                        <span>Nejvhodnejsi mapa {{ hint('Mapa, kde by mel byt podle modelu nejlepsi pomer bezpeci a efektivity boje.') }}</span>
+                        <span>Best map {{ hint('Map where the model expects the best balance of safety and combat efficiency.') }}</span>
                         <strong>{{ result.best_map }}</strong>
                     </article>
                     <article>
-                        <span>Nejvhodnejsi legenda {{ hint('Legenda vybrana podle profilu hrace, predikovaneho ranku a stylu hry.') }}</span>
+                        <span>Best legend {{ hint('Legend selected from player profile, predicted rank, and play style.') }}</span>
                         <strong>{{ result.best_legend }}</strong>
                     </article>
                     <article>
-                        <span>Nejvhodnejsi drop lokace {{ hint('Doporucene misto vysadku pro stabilni zacatek kola a loot.') }}</span>
+                        <span>Best drop location {{ hint('Recommended drop location for a stable start and loot access.') }}</span>
                         <strong>{{ result.best_drop_zone }}</strong>
                     </article>
                     <article>
-                        <span>Doporucena role {{ hint('Role v teamu, ktera nejvic sedi tvym statistikam a tempu hry.') }}</span>
+                        <span>Recommended role {{ hint('Team role that best matches your stats and game pace.') }}</span>
                         <strong>{{ result.ideal_team_role }}</strong>
                     </article>
                     <article>
-                        <span>Herni styl {{ hint('Shrnuti doporuceneho pristupu v zapasech: tempo, riziko a prioritni rozhodnuti.') }}</span>
+                        <span>Play style {{ hint('Summary of the recommended in-match approach: tempo, risk, and key priorities.') }}</span>
                         <strong>{{ result.combat_style }}</strong>
                     </article>
                 </div>
@@ -204,30 +204,30 @@
 
                 {% if player_stats %}
                 <section class="result">
-                <h2>Vstupni Statistiky</h2>
+                <h2>Input Statistics</h2>
                 <div class="stats-grid">
-                    <article><span>Level {{ hint('Celkovy level Apex uctu, orientacni ukazatel odehrane doby.') }}</span><strong>{{ player_stats.level }}</strong></article>
-                    <article><span>Rank score {{ hint('Body v rank rezimu, ktere urcuji aktualni pozici mezi ranky.') }}</span><strong>{{ player_stats.rank_score }}</strong></article>
-                    <article><span>Kills {{ hint('Celkovy pocet zabiti evidovany na profilu.') }}</span><strong>{{ player_stats.kills }}</strong></article>
-                    <article><span>Wins {{ hint('Celkovy pocet vyher evidovany na profilu.') }}</span><strong>{{ player_stats.wins }}</strong></article>
+                    <article><span>Level {{ hint('Overall Apex account level, an approximate indicator of playtime.') }}</span><strong>{{ player_stats.level }}</strong></article>
+                    <article><span>Rank score {{ hint('Points in ranked mode that determine current rank position.') }}</span><strong>{{ player_stats.rank_score }}</strong></article>
+                    <article><span>Kills {{ hint('Total kills recorded on the profile.') }}</span><strong>{{ player_stats.kills }}</strong></article>
+                    <article><span>Wins {{ hint('Total wins recorded on the profile.') }}</span><strong>{{ player_stats.wins }}</strong></article>
                 </div>
                 </section>
                 {% endif %}
 
                 {% if result.recent_games %}
                 <section class="result">
-                <h2>Poslednich 5 Her</h2>
+                <h2>Last 5 Matches</h2>
                 {% if result.recent_games_kind == 'estimate' %}
-                <p class="help">Historie zapasu z API nebyla dostupna, proto jde o odhad podle aktualnich statistik.</p>
+                <p class="help">Match history from the API was not available, so this is an estimate based on current stats.</p>
                 {% else %}
-                <p class="help">Prehled poslednich zapasu z dostupnych API dat.</p>
+                <p class="help">Overview of recent matches from available API data.</p>
                 {% endif %}
                 <div class="leaderboard-wrap">
                     <table class="leaderboard-table">
                         <thead>
                             <tr>
                                 <th>#</th>
-                                <th>Vysledek</th>
+                                <th>Result</th>
                                 <th>Placement</th>
                                 <th>Kills</th>
                                 <th>Damage</th>
@@ -255,19 +255,19 @@
         {% if ui_mode == 'user' and history %}
         <section class="card">
             <div class="leaderboard-head">
-                <h2>Moje Posledni Predikce</h2>
-                <p>Tady vidis historii vlastnich predikci ulozenou k tvemu uctu.</p>
+                <h2>My Recent Predictions</h2>
+                <p>Here you can see the history of your predictions saved to your account.</p>
             </div>
             <div class="leaderboard-wrap">
                 <table class="leaderboard-table">
                     <thead>
                         <tr>
-                            <th>Cas {{ hint('Cas ulozeni predikce do tve historie.') }}</th>
-                            <th>Dotaz {{ hint('Jmeno, ktere jsi zadal do vyhledavani.') }}</th>
-                            <th>Nalezeny hrac {{ hint('Konecny profil, ktery byl pouzit po zpracovani dotazu.') }}</th>
-                            <th>Predikovany rank {{ hint('Rank odhadnuty modelem v danem okamziku.') }}</th>
-                            <th>Predikovany damage/game {{ hint('Odhad prumerneho damage na zapas od modelu.') }}</th>
-                            <th>Zdroj {{ hint('Informace, jestli data prisla z API nebo lokalniho fallbacku.') }}</th>
+                            <th>Time {{ hint('Time when the prediction was saved into your history.') }}</th>
+                            <th>Query {{ hint('Name you entered in the search.') }}</th>
+                            <th>Resolved player {{ hint('Final profile used after processing your query.') }}</th>
+                            <th>Predicted rank {{ hint('Rank estimated by the model at that moment.') }}</th>
+                            <th>Predicted damage/game {{ hint('Estimated average damage per match from the model.') }}</th>
+                            <th>Source {{ hint('Whether the data came from API or local fallback.') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -291,7 +291,7 @@
         <section class="card">
             <div class="leaderboard-head">
                 <h2>Global Top 50 Leaderboard</h2>
-                <p>Top hraci jako inspirace pro vyhledavani a porovnani. Data jsou sestavena z API + fallback datasetu.</p>
+                <p>Top players as inspiration for searching and comparison. Data is assembled from API + fallback dataset.</p>
             </div>
 
             {% if leaderboard %}
@@ -300,12 +300,12 @@
                     <thead>
                         <tr>
                             <th>#</th>
-                            <th>Hrac</th>
-                            <th>Rank {{ hint('Aktualni rank nebo nejblizsi odhad rankove tridy hrace.') }}</th>
-                            <th>Rank score {{ hint('Ciselna hodnota rank postupu, vhodna pro porovnavani hracu.') }}</th>
-                            <th>Damage/game {{ hint('Prumerny damage na zapas, pokud je dostupny v datech.') }}</th>
-                            <th>KDR {{ hint('Kill/Death ratio: pomer zabiti k umrti.') }}</th>
-                            <th>Wins {{ hint('Celkovy pocet vyher zaznamenanych u hrace.') }}</th>
+                            <th>Player</th>
+                            <th>Rank {{ hint('Current rank or nearest estimated rank tier of the player.') }}</th>
+                            <th>Rank score {{ hint('Numeric ranked progress value, useful for player comparison.') }}</th>
+                            <th>Damage/game {{ hint('Average damage per match, if available in data.') }}</th>
+                            <th>KDR {{ hint('Kill/Death ratio: kills divided by deaths.') }}</th>
+                            <th>Wins {{ hint('Total wins recorded for the player.') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -324,7 +324,7 @@
                 </table>
             </div>
             {% else %}
-            <div class="status error">Leaderboard nema data. Spust build script pro top hrace.</div>
+            <div class="status error">Leaderboard has no data. Run the build script for top players.</div>
             {% endif %}
         </section>
         {% endif %}

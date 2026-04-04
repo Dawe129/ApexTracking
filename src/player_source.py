@@ -79,7 +79,7 @@ def resolve_player_row(
         local_row = _find_local_player_row(player_name)
         if local_row is not None:
             return local_row, "local"
-        raise CollectorError(f"Hrac '{player_name}' nebyl nalezen v lokalnim datasetu.")
+        raise CollectorError(f"Player '{player_name}' was not found in the local dataset.")
 
     if mode == "api":
         return _resolve_api_row(player_name, platform)
@@ -88,14 +88,14 @@ def resolve_player_row(
         try:
             cached = get_cached_player_row(player_name=player_name, platform=platform)
         except RuntimeError as exc:
-            raise CollectorError("DB cache neni inicializovana.") from exc
+            raise CollectorError("DB cache is not initialized.") from exc
 
         if cached is None:
-            raise CollectorError(f"Hrac '{player_name}' nebyl nalezen v DB cache.")
+            raise CollectorError(f"Player '{player_name}' was not found in DB cache.")
         return _normalize_row(cached), "db"
 
     if mode != "auto":
-        raise CollectorError(f"Neznamy rezim zdroje dat: {source_mode}")
+        raise CollectorError(f"Unknown data source mode: {source_mode}")
 
     try:
         cached = get_cached_player_row(player_name=player_name, platform=platform)
