@@ -27,7 +27,7 @@ Hlavni soubory:
 - src/collector.py: API fetch + parsovani payloadu na numerickou feature row.
 - src/predictor.py: nacteni modelu a inference (rank, damage, win rate + recommendation engine).
 - src/auth_store.py: PostgreSQL vrstva (users, predictions, player_cache).
-- src/train.py: trenink modelu a export model bundle.
+- notebook.ipynb: trenink modelu a export model bundle.
 - src/leaderboard.py: nacteni a formatovani top leaderboardu.
 - templates/index.html: frontend sablona.
 - static/style.css: styly UI.
@@ -40,7 +40,6 @@ Data a model:
 Testy:
 - tests/test_collector.py
 - tests/test_predictor_logic.py
-- tests/test_train_targets.py
 
 ## 3) Jak tece request v praxi
 Vstupni endpoint je / v src/web.py.
@@ -121,7 +120,7 @@ Pouzite cesty:
 Po sberu se data cisti a mapuji na stejne feature schema, aby slo trenovat stabilne.
 
 ## 9) Jak jsem trenoval model
-Trenink je v src/train.py.
+Trenink je pouze v notebook.ipynb.
 
 Pipeline:
 1. Nacist CSV.

@@ -22,7 +22,7 @@ Aplikace se ma pouzivat pres URL Render web service (napr. `https://apextracking
 - ML inference: `src/predictor.py`
 - Databaze: PostgreSQL (`src/auth_store.py`)
 - Frontend: `templates/index.html`, `static/style.css`
-- Trening modelu: `src/train.py`
+- Trening modelu: `notebook.ipynb`
 - Model bundle: `model/model.pkl`
 
 ## Datovy tok (runtime)
@@ -76,9 +76,9 @@ Pouzite tabulky:
 
 ## Trening modelu
 
-Model se trenuje z vlastnich sesbiranych dat skriptem `src/train.py`.
+Model se trenuje z vlastnich sesbiranych dat pouze pres `notebook.ipynb`.
 
-Notebook s postupem treninku a evaluace je v `notebook.ipynb`.
+`notebook.ipynb` obsahuje cely postup: cisteni dat, feature engineering, trenink, evaluaci i export modelu.
 
 Trenuji se 3 modely:
 - rank model,
@@ -92,7 +92,6 @@ Model je ukladan komprimovane do `model/model.pkl` kvuli nizsi pametove narocnos
 Projekt obsahuje unit testy:
 - `tests/test_collector.py`
 - `tests/test_predictor_logic.py`
-- `tests/test_train_targets.py`
 
 ## Poznamka k puvodu dat
 
