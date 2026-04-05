@@ -14,6 +14,20 @@
     <span class="stat-hint" tabindex="0" aria-label="Help" data-tip="{{ text }}" title="{{ text }}">i</span>
     {%- endmacro %}
 
+    {% macro rank_class(rank_value) -%}
+    {%- set r = (rank_value|string|lower) -%}
+    {%- if 'predator' in r -%}rank-predator
+    {%- elif 'master' in r -%}rank-master
+    {%- elif 'diamond' in r -%}rank-diamond
+    {%- elif 'platinum' in r -%}rank-platinum
+    {%- elif 'gold' in r -%}rank-gold
+    {%- elif 'silver' in r -%}rank-silver
+    {%- elif 'bronze' in r -%}rank-bronze
+    {%- elif 'rookie' in r -%}rank-rookie
+    {%- else -%}rank-unranked
+    {%- endif -%}
+    {%- endmacro %}
+
     <div class="bg-shape bg-shape-a"></div>
     <div class="bg-shape bg-shape-b"></div>
 
@@ -21,7 +35,7 @@
         <section class="hero">
             <p class="eyebrow">Apex Legends ML</p>
             <h1>Tracker & Smart Recommendations</h1>
-            <p class="lead">Enter a player and the app will predict rank, damage per game, and recommend a map, legend, drop location, and team role.</p>
+            <p class="lead">Enter a player and the app will predict rank confidence profile and recommend a map, legend, drop location, and team role.</p>
         </section>
 
         {% if auth_error %}
@@ -159,7 +173,7 @@
                     </article>
                     <article>
                         <span>Predicted rank {{ hint('Estimated rank based on available stats using the model.') }}</span>
-                        <strong>{{ result.rank }}</strong>
+                        <strong class="rank-badge {{ rank_class(result.rank) }}">{{ result.rank }}</strong>
                     </article>
                     <article>
                         <span>Rank confidence {{ hint('How certain the model is about the predicted rank based on class probabilities.') }}</span>
@@ -177,6 +191,17 @@
                         <span>Data source {{ hint('AUTO uses API data when available, otherwise a local fallback dataset.') }}</span>
                         <strong>{{ result.source }}</strong>
                     </article>
+                </div>
+
+                <div class="rank-palette" aria-label="Apex rank color palette">
+                    <span class="rank-badge rank-rookie">Rookie</span>
+                    <span class="rank-badge rank-bronze">Bronze</span>
+                    <span class="rank-badge rank-silver">Silver</span>
+                    <span class="rank-badge rank-gold">Gold</span>
+                    <span class="rank-badge rank-platinum">Platinum</span>
+                    <span class="rank-badge rank-diamond">Diamond</span>
+                    <span class="rank-badge rank-master">Master</span>
+                    <span class="rank-badge rank-predator">Predator</span>
                 </div>
                 </section>
 
@@ -280,7 +305,7 @@
                             <td>{{ row.created_at }}</td>
                             <td>{{ row.queried_player }}</td>
                             <td>{{ row.resolved_player }}</td>
-                            <td>{{ row.predicted_rank }}</td>
+                            <td><span class="rank-badge rank-compact {{ rank_class(row.predicted_rank) }}">{{ row.predicted_rank }}</span></td>
                             <td>
                                 {% if row.predicted_damage_per_game <= 100 %}
                                 {{ "%.2f"|format(row.predicted_damage_per_game) }}%
@@ -323,7 +348,7 @@
                         <tr>
                             <td>{{ row.position }}</td>
                             <td>{{ row.player }}</td>
-                            <td>{{ row.rank }}</td>
+                            <td><span class="rank-badge rank-compact {{ rank_class(row.rank) }}">{{ row.rank }}</span></td>
                             <td>{{ row.rank_score }}</td>
                             <td>{{ row.damage_per_game }}</td>
                             <td>{{ row.kdr }}</td>

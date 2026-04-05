@@ -254,6 +254,82 @@ button:hover {
     font-weight: 700;
 }
 
+.rank-badge {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    padding: 0.2rem 0.55rem;
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+}
+
+.rank-compact {
+    font-size: 0.82rem;
+    padding: 0.14rem 0.48rem;
+}
+
+.rank-palette {
+    margin-top: 0.7rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+.rank-rookie {
+    color: #ecd8b6;
+    background: rgba(236, 216, 182, 0.08);
+    border-color: rgba(236, 216, 182, 0.3);
+}
+
+.rank-bronze {
+    color: #d8a474;
+    background: rgba(216, 164, 116, 0.09);
+    border-color: rgba(216, 164, 116, 0.34);
+}
+
+.rank-silver {
+    color: #d3d9e1;
+    background: rgba(211, 217, 225, 0.1);
+    border-color: rgba(211, 217, 225, 0.35);
+}
+
+.rank-gold {
+    color: #f1d27a;
+    background: rgba(241, 210, 122, 0.1);
+    border-color: rgba(241, 210, 122, 0.35);
+}
+
+.rank-platinum {
+    color: #5ad7d1;
+    background: rgba(90, 215, 209, 0.11);
+    border-color: rgba(90, 215, 209, 0.36);
+}
+
+.rank-diamond {
+    color: #8fc3ff;
+    background: rgba(143, 195, 255, 0.11);
+    border-color: rgba(143, 195, 255, 0.34);
+}
+
+.rank-master {
+    color: #ca9bff;
+    background: rgba(202, 155, 255, 0.12);
+    border-color: rgba(202, 155, 255, 0.35);
+}
+
+.rank-predator {
+    color: #ff6b6b;
+    background: rgba(255, 107, 107, 0.13);
+    border-color: rgba(255, 107, 107, 0.38);
+}
+
+.rank-unranked {
+    color: #bac0cb;
+    background: rgba(186, 192, 203, 0.09);
+    border-color: rgba(186, 192, 203, 0.28);
+}
+
 .leaderboard-wrap {
     border: 1px solid var(--line);
     border-radius: 10px;
