@@ -333,7 +333,7 @@ button:hover {
 .leaderboard-wrap {
     border: 1px solid var(--line);
     border-radius: 10px;
-    overflow-x: auto;
+    overflow-x: hidden;
     overflow-y: hidden;
     background: var(--surface);
 }
@@ -341,8 +341,8 @@ button:hover {
 .leaderboard-table {
     width: 100%;
     border-collapse: collapse;
-    table-layout: auto;
-    min-width: 900px;
+    table-layout: fixed;
+    min-width: 0;
 }
 
 .leaderboard-table th,
@@ -352,7 +352,8 @@ button:hover {
     text-align: left;
     font-size: 0.9rem;
     vertical-align: middle;
-    white-space: nowrap;
+    white-space: normal;
+    word-break: break-word;
 }
 
 .leaderboard-table th {
@@ -361,11 +362,6 @@ button:hover {
     font-size: 0.74rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-}
-
-.leaderboard-table th:nth-child(2),
-.leaderboard-table td:nth-child(2) {
-    min-width: 220px;
 }
 
 .leaderboard-table tbody tr:last-child td {
@@ -437,7 +433,9 @@ button:disabled {
         grid-template-columns: 1fr;
     }
 
-    .leaderboard-table {
-        min-width: 760px;
+    .leaderboard-table th,
+    .leaderboard-table td {
+        padding: 0.54rem 0.5rem;
+        font-size: 0.82rem;
     }
 }

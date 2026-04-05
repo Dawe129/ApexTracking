@@ -1,56 +1,57 @@
 # ApexTracking
 
-ApexTracking je webova aplikace, ktera z live Apex statistik dela ML predikce a doporuceni.
+ApexTracking je webova Flask aplikace, ktera z Apex statistik dela ML odhad ranku a prakticka doporuceni pro hru.
 
-Co aplikace vraci:
-- predikovany rank,
-- predikovany damage per game,
-- predikovany win rate,
-- doporuceny setup (mapa, legenda, drop, role, styl),
-- poslednich 5 her (API historie nebo odhad).
+## Co aplikace vraci
 
-## Produkcni provoz
-
-Projekt je urcen pro spousteni na Renderu.
-
-Aplikace se ma pouzivat pres URL Render web service (napr. `https://apextracking.onrender.com`).
+- Predicted rank
+- Rank confidence
+- Promotion chance
+- Demotion risk
+- Doporuceny setup (mapa, legenda, drop location, role, play style)
+- Last 5 matches (realna API historie nebo transparentne oznaceny estimate)
 
 ## Architektura
 
-- Backend: Flask (`src/web.py`)
-- Data ingest: `src/player_source.py` + `src/collector.py`
-- ML inference: `src/predictor.py`
+- Backend: `src/web.py`
+- Data source resolver: `src/player_source.py`
+- API vrstva (runtime): `src/apex_api.py`
+- ML inference + recommendations: `src/predictor.py`
 - Databaze: PostgreSQL (`src/auth_store.py`)
+- Leaderboard loader: `src/leaderboard.py`
 - Frontend: `templates/index.html`, `static/style.css`
-- Trening modelu: `notebook.ipynb`
+- Trening + data collection workflow: `notebook.ipynb`
 - Model bundle: `model/model.pkl`
 
 ## Datovy tok (runtime)
 
-1. Uzivatel zada hrace.
-2. Aplikace zkusi cache v PostgreSQL (`player_cache`).
-3. Kdyz cache neni, stahne data z API.
-4. Data se premapuji na feature row.
-5. Model predikuje rank, damage/game, win rate.
-6. Recommendation engine navrhne mapu/legendu/drop/role/style.
-7. U prihlaseneho uzivatele se predikce ulozi do historie (`predictions`).
+1. Uzivatel zada hrace a platformu.
+2. `player_source` zkusi nacist data z `player_cache` (PostgreSQL).
+3. Pokud cache neni, sahne na API a row ulozi do cache.
+4. `predictor` spocita rank + confidence/progression metriky a doporuceny setup.
+5. Web vykresli vystup.
+6. U prihlaseneho uzivatele se predikce ulozi do `predictions` historie.
 
 ## Databaze (PostgreSQL only)
 
 Aplikace bezi pouze s PostgreSQL.
 
-Povinna env promenna:
+Povinne env promenne:
 - `DATABASE_URL`
+- `APEX_API_KEY`
+- `FLASK_SECRET_KEY`
 
 Pouzite tabulky:
 - `users`
 - `predictions`
 - `player_cache`
 
+Poznamka: sloupec `predicted_damage_per_game` v tabulce `predictions` se nyni pouziva pro ulozeni rank confidence (%) kvuli zpetne kompatibilite bez migrace.
+
 ## Render nasazeni
 
 ### 1) Vytvor PostgreSQL service
-- Service name: napriklad `apextracking-db`
+- Service name: napr. `apextracking-db`
 - Region: stejny jako web service
 
 ### 2) Vytvor Web Service
@@ -60,7 +61,7 @@ Pouzite tabulky:
 - Build Command: `pip install -r requirements.txt`
 - Start Command: `python -m src.web`
 
-### 3) Nastav env promenne ve Web Service
+### 3) Nastav env promenne
 - `DATABASE_URL` = Internal Database URL z Render PostgreSQL
 - `APEX_API_KEY` = tvuj API key
 - `FLASK_SECRET_KEY` = dlouhy nahodny string
@@ -68,24 +69,25 @@ Pouzite tabulky:
 ### 4) Deploy
 - Manual Deploy -> Deploy latest commit
 
-### 5) Overeni funkcnosti
-- otevrit Render URL,
-- registrace + predikce,
-- restart web service,
-- overit, ze ucet a historie zustaly (persistence PostgreSQL).
+### 5) Overeni
+- Otevrit Render URL
+- Prihlasit/registrovat se
+- Spustit predikci
+- Overit, ze historie predikci zustava po restartu
 
-## Trening modelu
+## Trening modelu a sber dat
 
-Model se trenuje z vlastnich sesbiranych dat pouze pres `notebook.ipynb`.
+Model i sber dat je centralizovany do `notebook.ipynb`.
 
-`notebook.ipynb` obsahuje cely postup: cisteni dat, feature engineering, trenink, evaluaci i export modelu.
-
-Trenuji se 3 modely:
-- rank model,
-- damage model,
-- win rate model.
-
-Model je ukladan komprimovane do `model/model.pkl` kvuli nizsi pametove narocnosti v produkci.
+Notebook obsahuje:
+- cisteni dat,
+- feature engineering,
+- trenink rank modelu,
+- evaluaci,
+- export do `model/model.pkl`,
+- notebook-only funkce pro sber dat:
+	- kolekce podle seznamu jmen,
+	- UID harvesting.
 
 ## Testy
 
@@ -95,14 +97,4 @@ Projekt obsahuje unit testy:
 
 ## Poznamka k puvodu dat
 
-Treningova data jsou sbirana pres Apex API (vlastni sber). Nejde o prevzaty hotovy dataset.
-
-Sber dat je centralizovany do notebooku (`notebook.ipynb`), kde jsou dve casti:
-- kolekce podle seznamu jmen,
-- harvest unikatnich uctu podle UID prostoru.
-
-Pro produkcni beh aplikace je API vrstva v `src/apex_api.py`.
-
-## Vnitrni studijni material
-
-Interni poznamky k obhajobe a logice programu jsou v `notes.md`.
+Treningova data jsou sbirana pres Apex API (vlastni sber), nejde o prevzaty hotovy dataset.
