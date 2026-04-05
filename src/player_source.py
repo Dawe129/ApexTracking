@@ -5,8 +5,8 @@ from typing import Any, Dict, Tuple
 
 import pandas as pd
 
+from src.apex_api import CollectorError, fetch_player_stats, load_api_key, player_to_row
 from src.auth_store import get_cached_player_row, upsert_cached_player_row
-from src.collector import CollectorError, fetch_player_stats, load_api_key, player_to_row
 
 
 def _normalize_row(row: Dict[str, Any]) -> Dict[str, Any]:

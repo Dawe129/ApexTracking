@@ -1,6 +1,6 @@
 import unittest
 
-from src.collector import _extract_recent_matches, player_to_row
+from src.apex_api import _extract_recent_matches, player_to_row
 
 
 class CollectorTests(unittest.TestCase):

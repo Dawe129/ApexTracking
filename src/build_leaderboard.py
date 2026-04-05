@@ -8,7 +8,7 @@ from typing import Dict, List, Set
 
 import pandas as pd
 
-from src.collector import CollectorError, fetch_player_stats, load_api_key, player_to_row
+from src.apex_api import CollectorError, fetch_player_stats, load_api_key, player_to_row
 
 MIN_GAMES_PLAYED = 50
 MAX_KDR = 6.0

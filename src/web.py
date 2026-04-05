@@ -16,7 +16,7 @@ from src.auth_store import (
     save_user_prediction,
     update_user_apex_profile,
 )
-from src.collector import CollectorError
+from src.apex_api import CollectorError
 from src.leaderboard import load_leaderboard
 from src.player_source import resolve_player_row
 from src.predictor import ApexPredictor, PredictorError

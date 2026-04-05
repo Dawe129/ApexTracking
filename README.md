@@ -97,10 +97,11 @@ Projekt obsahuje unit testy:
 
 Treningova data jsou sbirana pres Apex API (vlastni sber). Nejde o prevzaty hotovy dataset.
 
-V projektu jsou skripty pro sber a zpracovani dat:
-- `src/collector.py`
-- `src/uid_harvester.py`
-- `src/build_training_dataset.py`
+Sber dat je centralizovany do notebooku (`notebook.ipynb`), kde jsou dve casti:
+- kolekce podle seznamu jmen,
+- harvest unikatnich uctu podle UID prostoru.
+
+Pro produkcni beh aplikace je API vrstva v `src/apex_api.py`.
 
 ## Vnitrni studijni material
 

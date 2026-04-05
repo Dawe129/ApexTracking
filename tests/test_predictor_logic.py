@@ -5,22 +5,16 @@ from src.predictor import ApexPredictor
 
 class PredictorLogicTests(unittest.TestCase):
     def _new_predictor_without_model(self):
-        predictor = ApexPredictor.__new__(ApexPredictor)
-        predictor.win_rate_model = None
-        return predictor
+        return ApexPredictor.__new__(ApexPredictor)
 
-    def test_win_rate_fallback_stays_in_range(self):
+    def test_rank_tier_score_ordering(self):
         predictor = self._new_predictor_without_model()
-        row = {
-            "games_played": 300,
-            "wins": 35,
-            "kdr": 1.4,
-            "rank_score": 8200,
-        }
+        bronze = predictor._rank_tier_score("Bronze IV")
+        gold = predictor._rank_tier_score("Gold II")
+        master = predictor._rank_tier_score("Master")
 
-        value = predictor._estimate_win_rate_fallback(row)
-        self.assertGreaterEqual(value, 0.0)
-        self.assertLessEqual(value, 0.85)
+        self.assertLess(bronze, gold)
+        self.assertLess(gold, master)
 
     def test_recommendations_are_complete(self):
         predictor = self._new_predictor_without_model()
