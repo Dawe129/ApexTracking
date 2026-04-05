@@ -51,20 +51,37 @@ def _clamp(value: float, low: float, high: float) -> float:
     return min(max(value, low), high)
 
 
-def _build_estimated_recent_games(row: Dict[str, Any], win_rate_pred: float, damage_pred: float) -> list[Dict[str, Any]]:
+def _build_estimated_recent_games(
+    row: Dict[str, Any],
+    rank_confidence: float,
+    promotion_chance: float,
+    demotion_risk: float,
+) -> list[Dict[str, Any]]:
     player_sig = f"{row.get('player','')}-{row.get('uid','')}-{int(float(row.get('level', 0) or 0))}"
     rng = random.Random(player_sig)
 
     games_played = float(row.get("games_played", 0) or 0)
     wins = float(row.get("wins", 0) or 0)
     observed_wr = wins / games_played if games_played > 0 else 0.0
-    wr = _clamp(0.7 * win_rate_pred + 0.3 * observed_wr, 0.01, 0.75)
+    kdr = float(row.get("kdr", 0) or 0)
+    rank_score = float(row.get("rank_score", 0) or 0)
+
+    model_wr_proxy = _clamp(
+        0.04
+        + rank_confidence * 0.42
+        + promotion_chance * 0.20
+        - demotion_risk * 0.08
+        + min(3.0, max(0.0, kdr)) * 0.05,
+        0.01,
+        0.75,
+    )
+    wr = _clamp(0.65 * observed_wr + 0.35 * model_wr_proxy, 0.01, 0.75)
 
     observed_dpg = float(row.get("damage_per_game", 0) or 0)
-    base_damage = observed_dpg if observed_dpg > 0 else damage_pred
+    damage_proxy = 120.0 + min(2200.0, rank_score * 0.02) + min(700.0, max(0.0, kdr) * 180.0)
+    base_damage = observed_dpg if observed_dpg > 0 else damage_proxy
     base_damage = _clamp(base_damage, 60.0, 2800.0)
 
-    kdr = float(row.get("kdr", 0) or 0)
     base_kills = _clamp(kdr * 1.4, 0.4, 5.5)
 
     out: list[Dict[str, Any]] = []
@@ -111,13 +128,16 @@ def _run_prediction(player_name: str, platform: str) -> Tuple[Dict[str, Any], Di
 
     predictor = ApexPredictor("model/model.pkl")
     pred = predictor.predict(row)
-    damage_raw = float(pred["predicted_damage_per_game"])
+    rank_confidence = float(pred.get("rank_confidence", 0.0))
+    promotion_chance = float(pred.get("promotion_chance", 0.0))
+    demotion_risk = float(pred.get("demotion_risk", 0.0))
 
     result = {
         "player": row["player"],
         "rank": pred["predicted_rank"],
-        "damage_per_game": _format_value(damage_raw),
-        "win_rate": _format_percent(float(pred.get("predicted_win_rate", 0.0))),
+        "rank_confidence": _format_percent(rank_confidence),
+        "promotion_chance": _format_percent(promotion_chance),
+        "demotion_risk": _format_percent(demotion_risk),
         "source": source,
         "best_map": pred["best_map"],
         "best_legend": pred["best_legend"],
@@ -133,8 +153,9 @@ def _run_prediction(player_name: str, platform: str) -> Tuple[Dict[str, Any], Di
     else:
         result["recent_games"] = _build_estimated_recent_games(
             row=row,
-            win_rate_pred=float(pred.get("predicted_win_rate", 0.0)),
-            damage_pred=damage_raw,
+            rank_confidence=rank_confidence,
+            promotion_chance=promotion_chance,
+            demotion_risk=demotion_risk,
         )
         result["recent_games_kind"] = "estimate"
 
@@ -144,7 +165,8 @@ def _run_prediction(player_name: str, platform: str) -> Tuple[Dict[str, Any], Di
         "kills": int(row.get("kills", 0)),
         "wins": int(row.get("wins", 0)),
     }
-    return result, player_stats, damage_raw
+    confidence_score = round(rank_confidence * 100.0, 2)
+    return result, player_stats, confidence_score
 
 
 @app.route("/", methods=["GET", "POST"])

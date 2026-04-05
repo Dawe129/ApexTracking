@@ -162,12 +162,16 @@
                         <strong>{{ result.rank }}</strong>
                     </article>
                     <article>
-                        <span>Predicted damage/game {{ hint('Average damage per match estimated by the model.') }}</span>
-                        <strong>{{ result.damage_per_game }}</strong>
+                        <span>Rank confidence {{ hint('How certain the model is about the predicted rank based on class probabilities.') }}</span>
+                        <strong>{{ result.rank_confidence }}</strong>
                     </article>
                     <article>
-                        <span>Predicted win rate {{ hint('Estimated percentage of won games over a larger sample of matches.') }}</span>
-                        <strong>{{ result.win_rate }}</strong>
+                        <span>Promotion chance {{ hint('Estimated chance that player performance belongs to a higher tier than current rank.') }}</span>
+                        <strong>{{ result.promotion_chance }}</strong>
+                    </article>
+                    <article>
+                        <span>Demotion risk {{ hint('Estimated risk that performance is closer to a lower tier than current rank.') }}</span>
+                        <strong>{{ result.demotion_risk }}</strong>
                     </article>
                     <article>
                         <span>Data source {{ hint('AUTO uses API data when available, otherwise a local fallback dataset.') }}</span>
@@ -266,7 +270,7 @@
                             <th>Query {{ hint('Name you entered in the search.') }}</th>
                             <th>Resolved player {{ hint('Final profile used after processing your query.') }}</th>
                             <th>Predicted rank {{ hint('Rank estimated by the model at that moment.') }}</th>
-                            <th>Predicted damage/game {{ hint('Estimated average damage per match from the model.') }}</th>
+                            <th>Rank confidence {{ hint('Model confidence for predicted rank at the time of prediction.') }}</th>
                             <th>Source {{ hint('Whether the data came from API or local fallback.') }}</th>
                         </tr>
                     </thead>
@@ -277,7 +281,13 @@
                             <td>{{ row.queried_player }}</td>
                             <td>{{ row.resolved_player }}</td>
                             <td>{{ row.predicted_rank }}</td>
-                            <td>{{ "%.2f"|format(row.predicted_damage_per_game) }}</td>
+                            <td>
+                                {% if row.predicted_damage_per_game <= 100 %}
+                                {{ "%.2f"|format(row.predicted_damage_per_game) }}%
+                                {% else %}
+                                Legacy metric
+                                {% endif %}
+                            </td>
                             <td>{{ row.source }}</td>
                         </tr>
                         {% endfor %}

@@ -26,7 +26,7 @@ class ApexPredictor:
         self.label_encoder = bundle.get("label_encoder")
         self.feature_columns = bundle.get("feature_columns")
 
-        if not all([self.rank_model, self.damage_model, self.label_encoder, self.feature_columns]):
+        if not all([self.rank_model, self.label_encoder, self.feature_columns]):
             raise PredictorError("Model bundle missing required keys.")
 
     def _build_features(self, player_row: Dict[str, Any]) -> pd.DataFrame:
@@ -54,6 +54,75 @@ class ApexPredictor:
             return "Unknown"
         top = ordered[: max(1, min(top_k, len(ordered)))]
         return top[signature % len(top)][0]
+
+    @staticmethod
+    def _rank_tier_score(rank_name: str) -> int:
+        norm = str(rank_name or "").strip().lower()
+
+        if "predator" in norm:
+            base = 9
+        elif "master" in norm:
+            base = 8
+        elif "diamond" in norm:
+            base = 7
+        elif "platinum" in norm or "plat" in norm:
+            base = 6
+        elif "gold" in norm:
+            base = 5
+        elif "silver" in norm:
+            base = 4
+        elif "bronze" in norm:
+            base = 3
+        elif "rookie" in norm:
+            base = 2
+        elif "unranked" in norm:
+            base = 1
+        else:
+            base = 0
+
+        if " iv" in f" {norm} ":
+            div = 0
+        elif " iii" in f" {norm} ":
+            div = 1
+        elif " ii" in f" {norm} ":
+            div = 2
+        elif " i" in f" {norm} ":
+            div = 3
+        else:
+            div = 0
+
+        return base * 10 + div
+
+    def _rank_metrics(self, X: pd.DataFrame, predicted_rank: str, player_row: Dict[str, Any]) -> Dict[str, float]:
+        if hasattr(self.rank_model, "predict_proba"):
+            probs = np.asarray(self.rank_model.predict_proba(X)[0], dtype=float)
+        else:
+            probs = np.zeros(len(self.label_encoder.classes_), dtype=float)
+            pred_idx = int(self.rank_model.predict(X)[0])
+            if 0 <= pred_idx < len(probs):
+                probs[pred_idx] = 1.0
+
+        confidence = float(np.max(probs)) if probs.size else 0.0
+        confidence = self._clamp(confidence, 0.0, 1.0)
+
+        current_rank = str(player_row.get("rank", "Unranked"))
+        current_score = self._rank_tier_score(current_rank)
+
+        promotion = 0.0
+        demotion = 0.0
+        for idx, cls_name in enumerate(self.label_encoder.classes_):
+            cls_score = self._rank_tier_score(str(cls_name))
+            p = float(probs[idx]) if idx < len(probs) else 0.0
+            if cls_score > current_score:
+                promotion += p
+            elif cls_score < current_score:
+                demotion += p
+
+        return {
+            "rank_confidence": confidence,
+            "promotion_chance": self._clamp(promotion, 0.0, 1.0),
+            "demotion_risk": self._clamp(demotion, 0.0, 1.0),
+        }
 
     def _recommendations(self, player_row: Dict[str, Any]) -> Dict[str, str]:
         kdr = self._as_float(player_row.get("kdr", 0.0))
@@ -142,68 +211,17 @@ class ApexPredictor:
             "combat_style": combat_style,
         }
 
-    def _calibrate_damage_prediction(self, raw_pred: float, player_row: Dict[str, Any]) -> float:
-        # Keep prediction in a realistic range and anchor it to observed stats when available.
-        raw = max(0.0, float(raw_pred))
-
-        observed = self._as_float(player_row.get("damage_per_game"), 0.0)
-        if observed <= 0:
-            total_damage = self._as_float(player_row.get("damage"), 0.0)
-            games_played = self._as_float(player_row.get("games_played"), 0.0)
-            if total_damage > 0 and games_played > 0:
-                observed = total_damage / games_played
-
-        if observed > 0:
-            observed = min(max(observed, 0.0), 4000.0)
-            diff_ratio = abs(raw - observed) / max(observed, 1.0)
-            weight_observed = 0.75 if diff_ratio > 1.0 else 0.60
-            calibrated = weight_observed * observed + (1.0 - weight_observed) * raw
-        else:
-            calibrated = raw
-
-        return min(max(calibrated, 0.0), 4000.0)
-
-    def _estimate_win_rate_fallback(self, player_row: Dict[str, Any]) -> float:
-        games_played = self._as_float(player_row.get("games_played"), 0.0)
-        wins = self._as_float(player_row.get("wins"), 0.0)
-        kdr = self._as_float(player_row.get("kdr"), 0.0)
-        rank_score = self._as_float(player_row.get("rank_score"), 0.0)
-
-        observed = wins / games_played if games_played > 0 else 0.0
-        proxy = 0.02 + min(0.20, max(0.0, kdr) * 0.035) + min(0.12, max(0.0, rank_score) / 100000.0)
-        if observed > 0:
-            return self._clamp(observed * 0.75 + proxy * 0.25, 0.0, 0.85)
-        return self._clamp(proxy, 0.0, 0.85)
-
-    def _predict_win_rate(self, X: pd.DataFrame, player_row: Dict[str, Any]) -> float:
-        if self.win_rate_model is None:
-            return self._estimate_win_rate_fallback(player_row)
-
-        raw = self._as_float(self.win_rate_model.predict(X)[0], 0.0)
-        raw = self._clamp(raw, 0.0, 0.85)
-
-        games_played = self._as_float(player_row.get("games_played"), 0.0)
-        wins = self._as_float(player_row.get("wins"), 0.0)
-        observed = wins / games_played if games_played > 0 else 0.0
-        if observed > 0:
-            diff_ratio = abs(raw - observed) / max(observed, 0.01)
-            weight_observed = 0.7 if diff_ratio > 1.0 else 0.45
-            return self._clamp(weight_observed * observed + (1.0 - weight_observed) * raw, 0.0, 0.85)
-
-        return raw
-
     def predict(self, player_row: Dict[str, Any]) -> Dict[str, Any]:
         X = self._build_features(player_row)
 
         rank_idx = int(self.rank_model.predict(X)[0])
         rank_name = self.label_encoder.inverse_transform(np.array([rank_idx]))[0]
-        damage_pred = float(self.damage_model.predict(X)[0])
-        damage_pred = self._calibrate_damage_prediction(damage_pred, player_row)
-        win_rate_pred = self._predict_win_rate(X, player_row)
+        rank_metrics = self._rank_metrics(X, predicted_rank=rank_name, player_row=player_row)
 
         return {
             "predicted_rank": rank_name,
-            "predicted_damage_per_game": max(0.0, damage_pred),
-            "predicted_win_rate": win_rate_pred,
+            "rank_confidence": rank_metrics["rank_confidence"],
+            "promotion_chance": rank_metrics["promotion_chance"],
+            "demotion_risk": rank_metrics["demotion_risk"],
             **self._recommendations(player_row),
         }
