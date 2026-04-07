@@ -6,6 +6,17 @@ from typing import Any, Dict, Tuple
 from src.player_source import resolve_player_row
 from src.predictor import ApexPredictor
 
+RANK_PROFILE_ORDER = [
+    "Rookie",
+    "Bronze",
+    "Silver",
+    "Gold",
+    "Platinum",
+    "Diamond",
+    "Master",
+    "Predator",
+]
+
 
 def format_percent(value: float) -> str:
     return f"{value * 100:.2f}%"
@@ -13,6 +24,41 @@ def format_percent(value: float) -> str:
 
 def clamp(value: float, low: float, high: float) -> float:
     return min(max(value, low), high)
+
+
+def format_rank_profile(raw_profile: list[Dict[str, Any]]) -> list[Dict[str, Any]]:
+    by_key: Dict[str, tuple[str, float]] = {}
+    for item in raw_profile:
+        rank_name = str(item.get("rank", "")).strip() or "Unknown"
+        key = rank_name.lower()
+        by_key[key] = (rank_name, float(item.get("probability", 0.0)))
+
+    out: list[Dict[str, Any]] = []
+    for rank_name in RANK_PROFILE_ORDER:
+        key = rank_name.lower()
+        prob = by_key.get(key, (rank_name, 0.0))[1]
+        out.append(
+            {
+                "rank": rank_name,
+                "probability": prob,
+                "percent": format_percent(prob),
+            }
+        )
+
+    # Keep any unexpected class labels at the end to avoid hiding model outputs.
+    handled = {name.lower() for name in RANK_PROFILE_ORDER}
+    extras = [v for k, v in by_key.items() if k not in handled]
+    extras.sort(key=lambda kv: kv[1], reverse=True)
+    for name, prob in extras:
+        out.append(
+            {
+                "rank": name,
+                "probability": prob,
+                "percent": format_percent(prob),
+            }
+        )
+
+    return out
 
 
 def build_estimated_recent_games(
@@ -102,14 +148,7 @@ def run_prediction(player_name: str, platform: str) -> Tuple[Dict[str, Any], Dic
         "rank_confidence": format_percent(rank_confidence),
         "promotion_chance": format_percent(promotion_chance),
         "demotion_risk": format_percent(demotion_risk),
-        "rank_profile": [
-            {
-                "rank": str(item.get("rank", "Unknown")),
-                "probability": float(item.get("probability", 0.0)),
-                "percent": format_percent(float(item.get("probability", 0.0))),
-            }
-            for item in pred.get("rank_profile", [])
-        ],
+        "rank_profile": format_rank_profile(list(pred.get("rank_profile", []))),
         "source": source,
         "best_map": pred["best_map"],
         "best_legend": pred["best_legend"],
