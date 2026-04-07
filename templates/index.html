@@ -206,6 +206,26 @@
                     <span class="rank-badge rank-master">Master</span>
                     <span class="rank-badge rank-predator">Predator</span>
                 </div>
+
+                {% if result.rank_profile %}
+                <div class="rank-profile" aria-label="Rank probability profile">
+                    <h3>Rank Probability Profile</h3>
+                    <p class="help">The model confidence split across rank classes for this player.</p>
+                    <div class="rank-profile-list">
+                        {% for rp in result.rank_profile %}
+                        <article class="rank-profile-row">
+                            <div class="rank-profile-head">
+                                <span class="rank-badge rank-compact {{ rank_class(rp.rank) }}">{{ rp.rank }}</span>
+                                <strong>{{ rp.percent }}</strong>
+                            </div>
+                            <div class="rank-profile-bar" role="presentation">
+                                <div class="rank-profile-fill" style="width: {{ '%.2f'|format(rp.probability * 100) }}%"></div>
+                            </div>
+                        </article>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
                 </section>
 
                 <section class="result">

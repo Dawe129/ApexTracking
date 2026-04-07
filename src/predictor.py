@@ -85,5 +85,6 @@ class ApexPredictor:
             "rank_confidence": rank_metrics["rank_confidence"],
             "promotion_chance": rank_metrics["promotion_chance"],
             "demotion_risk": rank_metrics["demotion_risk"],
+            "rank_profile": rank_metrics.get("rank_profile", []),
             **self._recommendations(player_row),
         }

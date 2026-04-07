@@ -102,6 +102,14 @@ def run_prediction(player_name: str, platform: str) -> Tuple[Dict[str, Any], Dic
         "rank_confidence": format_percent(rank_confidence),
         "promotion_chance": format_percent(promotion_chance),
         "demotion_risk": format_percent(demotion_risk),
+        "rank_profile": [
+            {
+                "rank": str(item.get("rank", "Unknown")),
+                "probability": float(item.get("probability", 0.0)),
+                "percent": format_percent(float(item.get("probability", 0.0))),
+            }
+            for item in pred.get("rank_profile", [])
+        ],
         "source": source,
         "best_map": pred["best_map"],
         "best_legend": pred["best_legend"],

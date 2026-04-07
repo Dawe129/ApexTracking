@@ -68,7 +68,7 @@ def compute_rank_metrics(
     label_encoder: Any,
     X: pd.DataFrame,
     player_row: Dict[str, Any],
-) -> Dict[str, float]:
+) -> Dict[str, Any]:
     if hasattr(rank_model, "predict_proba"):
         probs = np.asarray(rank_model.predict_proba(X)[0], dtype=float)
     else:
@@ -85,18 +85,23 @@ def compute_rank_metrics(
 
     promotion = 0.0
     demotion = 0.0
+    rank_profile: list[Dict[str, float | str]] = []
     for idx, cls_name in enumerate(label_encoder.classes_):
         cls_score = rank_tier_score(str(cls_name))
         p = float(probs[idx]) if idx < len(probs) else 0.0
+        rank_profile.append({"rank": str(cls_name), "probability": p})
         if cls_score > current_score:
             promotion += p
         elif cls_score < current_score:
             demotion += p
 
+    rank_profile.sort(key=lambda item: float(item["probability"]), reverse=True)
+
     return {
         "rank_confidence": confidence,
         "promotion_chance": clamp(promotion, 0.0, 1.0),
         "demotion_risk": clamp(demotion, 0.0, 1.0),
+        "rank_profile": rank_profile,
     }
 
 
