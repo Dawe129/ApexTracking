@@ -1,100 +1,97 @@
 # ApexTracking
 
-ApexTracking je webova Flask aplikace, ktera z Apex statistik dela ML odhad ranku a prakticka doporuceni pro hru.
+ApexTracking is a Flask web application that predicts Apex player rank from profile stats and provides practical in-game recommendations.
 
-## Co aplikace vraci
+## Features
 
-- Predicted rank
+- Rank prediction (single classifier model)
 - Rank confidence
 - Promotion chance
 - Demotion risk
-- Doporuceny setup (mapa, legenda, drop location, role, play style)
-- Last 5 matches (realna API historie nebo transparentne oznaceny estimate)
+- Recommendation block:
+	- best map
+	- best legend
+	- best drop location
+	- recommended role
+	- play style
+- Rank Probability Profile (class probabilities shown per rank)
+- Last 5 matches (API history when available, otherwise transparent estimate)
+- Auth, guest mode, prediction history, and leaderboard
 
-## Architektura
+## Runtime Architecture
 
-- Backend: `src/web.py`
-- Data source resolver: `src/player_source.py`
-- API vrstva (runtime): `src/apex_api.py`
-- ML inference + recommendations: `src/predictor.py`
-- Databaze: PostgreSQL (`src/auth_store.py`)
-- Leaderboard loader: `src/leaderboard.py`
-- Frontend: `templates/index.html`, `static/style.css`
-- Trening + data collection workflow: `notebook.ipynb`
-- Model bundle: `model/model.pkl`
+- Web entry point: src/web.py
+- Prediction orchestration: src/prediction_runtime.py
+- Data source resolver: src/player_source.py
+- Model wrapper: src/predictor.py
+- Prediction logic and metrics: src/predictor_logic.py
+- API client facade: src/apex_api.py
+- Payload mapping and validation: src/apex_payload_mapper.py
+- DB facade: src/auth_store.py
+- DB modules: src/db_core.py, src/db_users.py, src/db_predictions.py, src/db_cache.py
+- Frontend: templates/index.html, static/style.css
 
-## Datovy tok (runtime)
+## Model
 
-1. Uzivatel zada hrace a platformu.
-2. `player_source` zkusi nacist data z `player_cache` (PostgreSQL).
-3. Pokud cache neni, sahne na API a row ulozi do cache.
-4. `predictor` spocita rank + confidence/progression metriky a doporuceny setup.
-5. Web vykresli vystup.
-6. U prihlaseneho uzivatele se predikce ulozi do `predictions` historie.
+The current production pipeline uses one model:
+- rank_model (classifier)
 
-## Databaze (PostgreSQL only)
+Stored bundle:
+- model/model.pkl
 
-Aplikace bezi pouze s PostgreSQL.
+Bundle keys:
+- rank_model
+- label_encoder
+- feature_columns
 
-Povinne env promenne:
-- `DATABASE_URL`
-- `APEX_API_KEY`
-- `FLASK_SECRET_KEY`
+## Notebooks
 
-Pouzite tabulky:
-- `users`
-- `predictions`
-- `player_cache`
+- notebook.ipynb: model training and export
+- notebook_data_collection.ipynb: data collection workflows
 
-Poznamka: sloupec `predicted_damage_per_game` v tabulce `predictions` se nyni pouziva pro ulozeni rank confidence (%) kvuli zpetne kompatibilite bez migrace.
+## Environment Variables
 
-## Render nasazeni
+Required:
+- DATABASE_URL
+- APEX_API_KEY
+- FLASK_SECRET_KEY
 
-### 1) Vytvor PostgreSQL service
-- Service name: napr. `apextracking-db`
-- Region: stejny jako web service
+## Database
 
-### 2) Vytvor Web Service
+PostgreSQL tables:
+- users
+- predictions
+- player_cache
+
+## Local Run
+
+1. Install dependencies
+- pip install -r requirements.txt
+
+2. Set environment variables
+- DATABASE_URL
+- APEX_API_KEY
+- FLASK_SECRET_KEY
+
+3. Start app
+- python -m src.web
+
+## Deploy (Render)
+
+Recommended configuration:
+- Build command: pip install -r requirements.txt
+- Start command: python -m src.web
 - Runtime: Python
-- Branch: `main`
-- Root Directory: prazdne
-- Build Command: `pip install -r requirements.txt`
-- Start Command: `python -m src.web`
 
-### 3) Nastav env promenne
-- `DATABASE_URL` = Internal Database URL z Render PostgreSQL
-- `APEX_API_KEY` = tvuj API key
-- `FLASK_SECRET_KEY` = dlouhy nahodny string
+## Tests
 
-### 4) Deploy
-- Manual Deploy -> Deploy latest commit
+Unit tests:
+- tests/test_collector.py
+- tests/test_predictor_logic.py
 
-### 5) Overeni
-- Otevrit Render URL
-- Prihlasit/registrovat se
-- Spustit predikci
-- Overit, ze historie predikci zustava po restartu
+Run:
+- python -m unittest tests.test_collector tests.test_predictor_logic
 
-## Trening modelu a sber dat
+## Data Origin
 
-Model i sber dat je centralizovany do `notebook.ipynb`.
-
-Notebook obsahuje:
-- cisteni dat,
-- feature engineering,
-- trenink rank modelu,
-- evaluaci,
-- export do `model/model.pkl`,
-- notebook-only funkce pro sber dat:
-	- kolekce podle seznamu jmen,
-	- UID harvesting.
-
-## Testy
-
-Projekt obsahuje unit testy:
-- `tests/test_collector.py`
-- `tests/test_predictor_logic.py`
-
-## Poznamka k puvodu dat
-
-Treningova data jsou sbirana pres Apex API (vlastni sber), nejde o prevzaty hotovy dataset.
+Training data is collected via Apex API workflows (project-owned collection), then cleaned and prepared for training.

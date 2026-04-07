@@ -1,80 +1,212 @@
-# ApexTracking - poznamky k obhajobe
+# ApexTracking - studijni poznamky
 
-Tento dokument je interni tahak na obhajobu aktualni verze projektu.
+Toto je interni studijni dokument pro obhajobu a orientaci v projektu.
 
-## 1) Co aplikace dela
+## 1) Co projekt dela
 
-ApexTracking je Flask web, ktery po zadani hrace:
-- nacte statistiky z DB cache/API/fallback CSV,
+ApexTracking je Flask aplikace, ktera po zadani hrace:
+- nacte statistiky hrace,
 - predikuje rank,
-- z pravdepodobnosti rank modelu vypocita rank confidence, promotion chance a demotion risk,
-- navrhne setup (mapa, legenda, drop, role, styl),
-- zobrazi poslednich 5 her (real API historie nebo estimate).
+- spocita confidence + promotion chance + demotion risk,
+- doporuci mapu, legendu, drop lokaci, roli a play style,
+- zobrazi poslednich 5 zapasu (API nebo estimate).
 
-Rezime uzivatele:
-- auth (login/register),
-- guest (search + leaderboard),
-- user (vlastni profil + historie predikci).
+## 2) Jedna veta k architekture
 
-## 2) Hlavni soubory v aktualnim stavu
+Pouziva se jeden klasifikacni model ranku; vsechny metriky (confidence/promote/demote) jsou odvozene z pravdepodobnosti tohoto modelu.
 
-- `src/web.py`: Flask flow, formulare, render vystupu.
-- `src/player_source.py`: resolver zdroje dat hrace (db/api/local).
-- `src/apex_api.py`: API vrstva (fetch, mapovani payloadu na row, validacni helpery).
-- `src/predictor.py`: inference ranku + metriky confidence/progression + recommendation engine.
-- `src/auth_store.py`: PostgreSQL vrstva (`users`, `predictions`, `player_cache`).
-- `src/leaderboard.py`: priprava leaderboardu pro UI.
-- `src/build_leaderboard.py`: script na sestaveni leaderboard CSV.
-- `notebook.ipynb`: trening modelu + notebook-only sber dat.
-- `templates/index.html`, `static/style.css`: frontend.
+## 3) Kde se model trenuje
 
-Smazane stare skripty:
-- `src/collector.py` (nahrazeno `src/apex_api.py` + notebook sekci),
-- `src/uid_harvester.py` (nahrazeno notebook sekci).
+Trenink je v notebook.ipynb.
 
-## 3) Datovy tok requestu
+Kroky treninku:
+1. Nacteni datasetu (`data/players.csv` nebo `data/players_ready.csv`).
+2. Cisteni a validace dat.
+3. Feature engineering.
+4. Label encoding ranku.
+5. Train/test split.
+6. Trenink `RandomForestClassifier`.
+7. Evaluace (`accuracy`, `classification_report`).
+8. Analyza `predict_proba`.
+9. Export model bundle do `model/model.pkl`.
 
-1. Formular v UI zavola `POST /`.
-2. `web.py` spusti `_run_prediction`.
-3. `player_source.resolve_player_row` vrati row + source (`db`/`api`/`local`).
-4. `ApexPredictor.predict` vrati:
-- `predicted_rank`,
-- `rank_confidence`,
-- `promotion_chance`,
-- `demotion_risk`,
-- doporuceny setup.
-5. `web.py` slozi result pro sablonu.
-6. U prihlaseneho usera ulozi zaznam do `predictions`.
+## 4) Jaky model bundle se uklada
 
-## 4) Odkud se berou data
+V model/model.pkl je:
+- rank_model
+- label_encoder
+- feature_columns
 
-AUTO rezim v `player_source.py`:
-1. Nejdriv DB cache (`player_cache`).
-2. Kdyz cache neni, API pres `apex_api.fetch_player_stats`.
-3. Kdyz API selze, fallback z lokalniho CSV (`players_ready.csv`/`players.csv`).
+Damage a win_rate modely uz se v aktualni verzi nepouzivaji.
 
-`apex_api.player_to_row` mapuje payload na jednotne feature schema:
-- level, rank_score, kills, damage, headshots, games_played, wins, kdr, damage_per_game,
-- recent_matches (pokud API data obsahuje historii).
+## 5) Jak probiha predikce v runtime
 
-## 5) Co presne se predikuje
+Tok requestu:
+1. Web route v src/web.py prijme formular.
+2. src/prediction_runtime.py zavola `run_prediction`.
+3. src/player_source.py najde data (`db` -> `api` -> `local`).
+4. src/predictor.py zavola `ApexPredictor.predict`.
+5. src/predictor_logic.py vrati rank + metriky + doporuceni.
+6. Vysledek se vykresli do templates/index.html.
 
-Hlavni ML vystup:
-- `predicted_rank` (klasifikace).
+## 6) Jak se pocitaji metriky
 
-Odvozene metriky z `predict_proba`:
-- `rank_confidence` = jistota modelu,
-- `promotion_chance` = pravdepodobnost, ze vykon patri do vyssiho tieru,
-- `demotion_risk` = pravdepodobnost, ze vykon je blizsi nizsimu tieru.
+Predicted rank:
+- klasicka klasifikace (`predict`).
 
-Proc je to obhajitelne:
-- nejde o trivialni deleni typu damage/games nebo wins/games,
-- metriky vychazeji primo z distribuce pravdepodobnosti klasifikacniho modelu.
+Rank confidence:
+- `max(predict_proba)`.
 
-## 6) Last 5 matches
+Promotion chance:
+- soucet pravdepodobnosti trid nad aktualnim rankem hrace.
 
-- Kdyz API vrati historii, zobrazi se realna data.
-- Kdyz API historii nevrati, `web.py` generuje realisticky estimate (transparentne oznaceno).
+Demotion risk:
+- soucet pravdepodobnosti trid pod aktualnim rankem hrace.
+
+Rank Probability Profile:
+- kompletni rozpis pravdepodobnosti po rank tridach v UI.
+- zobrazuje se fixne od Rookie po Predator.
+
+## 7) Jak se sbiraji data
+
+Sber dat je oddeleny do notebook_data_collection.ipynb.
+
+Workflow A - collect_players_to_csv:
+- vstup je seznam jmen,
+- pro kazde jmeno se vola API,
+- payload se mapuje na jednotny row,
+- row projde validaci,
+- vysledek se uklada do CSV.
+
+Workflow B - harvest_uids_to_csv:
+- z existujicich seed UID se generuji kandidati,
+- paralelne se overuji pres API,
+- validni row se deduplikuji,
+- ukladaji se checkpointy i finalni CSV.
+
+## 8) Jak se data cisti
+
+V notebooku:
+1. Kontrola povinnych sloupcu.
+2. Prevod numerickych sloupcu na float.
+3. Filtrovani nevalidnich zaznamu (games_played, wins rozsah).
+4. Orez outlieru (kdr, damage_per_game).
+
+V runtime mapperu (`src/apex_payload_mapper.py`):
+- payload -> row schema,
+- helper validace `is_row_usable`.
+
+## 9) Datove zdroje v runtime
+
+AUTO rezim v src/player_source.py:
+1. player_cache (PostgreSQL)
+2. API volani (src/apex_api.py)
+3. fallback CSV (`data/players_ready.csv` nebo `data/players.csv`)
+
+## 10) Databaze a tabulky
+
+Povinne env:
+- DATABASE_URL
+
+Tabulky:
+1. users
+- login, heslo hash, ulozeny apex profil.
+
+2. predictions
+- historie predikci.
+- sloupec predicted_damage_per_game se drzi kvuli kompatibilite a uklada confidence (%).
+
+3. player_cache
+- cache row_json podle player_key a platform.
+
+## 11) Rozpis trid a souboru (co kde hledat)
+
+### `class ApexPredictor` (src/predictor.py)
+- nacte model bundle,
+- pripravi feature DataFrame,
+- vraci predikci ranku, metriky a doporuceni.
+
+### `class PredictorError` (src/predictor.py)
+- vyjimka pri chybe modelu/inference.
+
+### `class CollectorError` (src/apex_api.py)
+- vyjimka pri API/sberu dat.
+
+### src/predictor_logic.py
+- `compute_rank_metrics`: confidence/promote/demote + rank profile,
+- `build_recommendations`: herni doporuceni,
+- `rank_tier_score`: prevod rank jmena na tier score.
+
+### src/prediction_runtime.py
+- `run_prediction`: orchestruje celu predikci pro web,
+- formatuje vystupni procenta,
+- doplni estimate recent matches, kdyz API historii nema.
+
+### src/player_source.py
+- `resolve_player_row`: rozhoduje odkud se berou data hrace.
+
+### src/apex_payload_mapper.py
+- mapovani sloziteho API payloadu na jednotny row schema.
+
+### src/db_core.py
+- DB init, connect, schema create.
+
+### src/db_users.py
+- create/auth/get/update user.
+
+### src/db_predictions.py
+- ukladani a cteni historie predikci.
+
+### src/db_cache.py
+- cteni/zapis player cache.
+
+### src/auth_store.py
+- facade re-export (aby zbytek appky importoval jedno misto).
+
+## 12) Testy
+
+tests/test_collector.py:
+- kontrola mapovani recent matches a payload -> row.
+
+tests/test_predictor_logic.py:
+- poradi rank tier score,
+- ze recommendations vraci vsechna ocekavana pole.
+
+Poznamka:
+- testy jsou unit-level (logika), ne plne end-to-end test cele Flask app.
+
+## 13) Kratky text k obhajobe (30-45 s)
+
+"Projekt pouziva jeden rank klasifikacni model. Rank confidence, promotion chance a demotion risk se nepocitaji pravidly natvrdo, ale primo z distribuce pravdepodobnosti modelu. Runtime data beru pres resolver z DB cache, API nebo fallback CSV. Trenink je oddeleny v notebook.ipynb, sber dat v notebook_data_collection.ipynb a perzistence bezi na PostgreSQL." 
+
+## 14) Nejcastejsi troubleshooting
+
+1. Prazdny/failed API vysledek:
+- zkontrolovat APEX_API_KEY,
+- zkontrolovat timeout,
+- overit fallback dataset.
+
+2. Login nebo historie nefunguje:
+- zkontrolovat DATABASE_URL,
+- overit tabulky users/predictions/player_cache.
+
+3. Divny rank vystup:
+- zkontrolovat vstupni row,
+- zkontrolovat model/model.pkl,
+- porovnat classification report z treninku.
+
+4. UI nesedi po upravach:
+- hard refresh (Ctrl+F5),
+- zkontrolovat static/style.css a templates/index.html.
+
+## 6) Struktura model bundle
+
+Soubor `model/model.pkl` obsahuje:
+- `rank_model`,
+- `label_encoder`,
+- `feature_columns`.
+
+Regresni modely pro damage/win rate uz nejsou soucasti aktualni produkcni verze.
 
 ## 7) Databaze (PostgreSQL)
 
@@ -82,59 +214,55 @@ Povinne env:
 - `DATABASE_URL`
 
 Tabulky:
-1. `users`
+1. `users`:
 - auth + ulozeny Apex profil.
 
-2. `predictions`
-- historie predikci usera.
-- sloupec `predicted_damage_per_game` je aktualne pouzity jako uloziste confidence (%),
-  kvuli kompatibilite bez DB migrace.
+2. `predictions`:
+- historie predikci usera,
+- sloupec `predicted_damage_per_game` se pouziva jako uloziste confidence (%) kvuli zpetne kompatibilite.
 
-3. `player_cache`
-- cachovany row_json pro rychlejsi opakovane dotazy.
+3. `player_cache`:
+- cache row_json podle `player_key + platform`.
 
-## 8) Trening a sber dat
+DB vrstva je po refaktoru rozdelena:
+- `src/db_core.py`,
+- `src/db_users.py`,
+- `src/db_predictions.py`,
+- `src/db_cache.py`,
+- facade exporty pres `src/auth_store.py`.
 
-Vse je centralizovane do `notebook.ipynb`.
+## 8) Hlavni moduly aplikace
 
-Notebook obsahuje:
-- pripravu datasetu,
-- trening rank modelu,
-- evaluaci,
-- export `model/model.pkl`,
-- pomocne funkce pro sber dat:
-  - kolekce podle seznamu jmen,
-  - UID harvesting.
+- `src/web.py`: Flask controller a flow requestu.
+- `src/prediction_runtime.py`: runtime orchestrace predikce.
+- `src/player_source.py`: resolver zdroje dat (`db/api/local`).
+- `src/predictor.py`: model wrapper.
+- `src/predictor_logic.py`: confidence/progression metriky + recommendation logika.
+- `src/apex_api.py`: API client facade.
+- `src/apex_payload_mapper.py`: mapovani payloadu + validace row.
+- `src/leaderboard.py`: priprava leaderboardu pro UI.
 
-## 9) Leaderboard
-
-`build_leaderboard.py` sklada `data/leaderboard_top.csv`:
-- API + fallback data,
-- quality filtry,
-- top 50 pro zobrazeni ve webu.
-
-## 10) Hosting (Render)
+## 9) Deploy (Render)
 
 - Build: `pip install -r requirements.txt`
 - Start: `python -m src.web`
 - Env: `DATABASE_URL`, `APEX_API_KEY`, `FLASK_SECRET_KEY`
-- DB: Render PostgreSQL (persistuje data mezi deployi/restarty).
 
-## 11) 30s obhajoba (zkracena)
+## 10) Kratke vysvetleni k obhajobe
 
-"Aplikace je Flask web s autentizaci, perzistentni PostgreSQL vrstvou a rank klasifikacnim modelem. Data beru z DB cache, API a fallback datasetu. Nepredikuju trivialni podily, ale rank a metriky confidence/progression odvozene z pravdepodobnosti modelu. Nad tim bezi recommendation vrstva pro prakticke herni rozhodnuti. Cele to je nasazene na Renderu." 
+"V aktualni verzi pouzivame jeden klasifikacni rank model. Krome ranku z nej pres `predict_proba` pocitame confidence, promotion chance a demotion risk. Data se pro runtime berou z DB cache/API/fallback, trenink je v `notebook.ipynb` a sber dat je oddeleny v `notebook_data_collection.ipynb`." 
 
-## 12) Co zkontrolovat, kdyz neco nefunguje
+## 11) Co zkontrolovat, kdyz neco nefunguje
 
 1. API chyba / prazdny vysledek:
-- zkontrolovat `APEX_API_KEY`, timeout a source fallback.
+- zkontrolovat `APEX_API_KEY`, timeout a fallback.
 
 2. Login/historie nefunguje:
-- zkontrolovat `DATABASE_URL` a tabulky v Postgresu.
+- zkontrolovat `DATABASE_URL` a tabulky v PostgreSQL.
 
 3. Divny rank vystup:
-- zkontrolovat vstupni row ze `player_source`,
+- zkontrolovat vstupni row z `player_source.py`,
 - zkontrolovat aktualni `model/model.pkl`.
 
 4. Aplikace pada na hostingu:
-- overit RAM limit a velikost modelu.
+- overit env promenne, DB dostupnost a velikost modelu.
