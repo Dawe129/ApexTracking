@@ -55,8 +55,8 @@
                 <p>Log in, register, or continue as guest. Predictions and search are unlocked after selecting a mode.</p>
             </div>
 
-            <div class="auth-grid">
-                <form method="post" class="form">
+            <div class="auth-grid account-grid">
+                <form method="post" class="form profile-form">
                     <input type="hidden" name="form_action" value="login">
                     <label for="email_login">E-mail</label>
                     <input id="email_login" name="email" type="email" placeholder="example@gmail.com" oninvalid="this.setCustomValidity('Please enter a valid e-mail address.')" oninput="this.setCustomValidity('')" required>
@@ -105,7 +105,7 @@
                     <button type="submit">Save My Profile</button>
                 </form>
 
-                <form method="post" class="form">
+                <form method="post" class="form quick-form">
                     <input type="hidden" name="form_action" value="predict_my">
                     <label>My Quick Action</label>
                     <p class="help">Run a prediction directly on your saved Apex profile.</p>

@@ -167,6 +167,41 @@ button:hover {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.8rem;
+    align-items: stretch;
+}
+
+.auth-grid .form {
+    height: 100%;
+    align-content: start;
+}
+
+.auth-grid .form button {
+    margin-top: auto;
+}
+
+.account-grid .form {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 0.8rem;
+    background: rgba(255, 255, 255, 0.01);
+}
+
+.account-grid .quick-form {
+    grid-template-rows: auto auto 1fr auto;
+}
+
+.account-grid .quick-form .help {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface-soft);
+    padding: 0.7rem 0.78rem;
+    min-height: 84px;
+    display: flex;
+    align-items: flex-start;
+}
+
+.account-grid .form button {
+    width: 100%;
 }
 
 .inline-form {
