@@ -90,7 +90,7 @@
             </div>
             <div class="account-chip">Logged in: <strong>{{ current_user.email }}</strong></div>
 
-            <div class="auth-grid">
+            <div class="auth-grid account-grid">
                 <form method="post" class="form">
                     <input type="hidden" name="form_action" value="save_apex">
                     <label for="apex_player">My Apex nickname</label>
@@ -108,7 +108,10 @@
                 <form method="post" class="form quick-form">
                     <input type="hidden" name="form_action" value="predict_my">
                     <label>My Quick Action</label>
-                    <p class="help">Run a prediction directly on your saved Apex profile.</p>
+                    <div class="quick-copy">
+                        <p class="help">Run a prediction directly on your saved Apex profile.</p>
+                        <p class="help">No extra input needed, it uses your saved nickname and platform.</p>
+                    </div>
                     <button type="submit">Load My Stats and Prediction</button>
                 </form>
             </div>
