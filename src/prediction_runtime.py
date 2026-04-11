@@ -18,6 +18,20 @@ RANK_PROFILE_ORDER = [
 ]
 
 
+def _to_float(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _to_int(value: Any, default: int = 0) -> int:
+    try:
+        return int(float(value))
+    except (TypeError, ValueError):
+        return default
+
+
 def format_percent(value: float) -> str:
     return f"{value * 100:.2f}%"
 
@@ -67,14 +81,14 @@ def build_estimated_recent_games(
     promotion_chance: float,
     demotion_risk: float,
 ) -> list[Dict[str, Any]]:
-    player_sig = f"{row.get('player','')}-{row.get('uid','')}-{int(float(row.get('level', 0) or 0))}"
+    player_sig = f"{row.get('player','')}-{row.get('uid','')}-{_to_int(row.get('level', 0), 0)}"
     rng = random.Random(player_sig)
 
-    games_played = float(row.get("games_played", 0) or 0)
-    wins = float(row.get("wins", 0) or 0)
+    games_played = _to_float(row.get("games_played", 0), 0.0)
+    wins = _to_float(row.get("wins", 0), 0.0)
     observed_wr = wins / games_played if games_played > 0 else 0.0
-    kdr = float(row.get("kdr", 0) or 0)
-    rank_score = float(row.get("rank_score", 0) or 0)
+    kdr = _to_float(row.get("kdr", 0), 0.0)
+    rank_score = _to_float(row.get("rank_score", 0), 0.0)
 
     model_wr_proxy = clamp(
         0.04
@@ -87,7 +101,7 @@ def build_estimated_recent_games(
     )
     wr = clamp(0.65 * observed_wr + 0.35 * model_wr_proxy, 0.01, 0.75)
 
-    observed_dpg = float(row.get("damage_per_game", 0) or 0)
+    observed_dpg = _to_float(row.get("damage_per_game", 0), 0.0)
     damage_proxy = 120.0 + min(2200.0, rank_score * 0.02) + min(700.0, max(0.0, kdr) * 180.0)
     base_damage = observed_dpg if observed_dpg > 0 else damage_proxy
     base_damage = clamp(base_damage, 60.0, 2800.0)
@@ -171,10 +185,10 @@ def run_prediction(player_name: str, platform: str) -> Tuple[Dict[str, Any], Dic
         result["recent_games_kind"] = "estimate"
 
     player_stats = {
-        "level": int(row.get("level", 0)),
-        "rank_score": int(row.get("rank_score", 0)),
-        "kills": int(row.get("kills", 0)),
-        "wins": int(row.get("wins", 0)),
+        "level": _to_int(row.get("level", 0), 0),
+        "rank_score": _to_int(row.get("rank_score", 0), 0),
+        "kills": _to_int(row.get("kills", 0), 0),
+        "wins": _to_int(row.get("wins", 0), 0),
     }
     confidence_score = round(rank_confidence * 100.0, 2)
     return result, player_stats, confidence_score

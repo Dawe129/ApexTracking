@@ -25,7 +25,12 @@ def get_cached_player_row(player_name: str, platform: str) -> Optional[Dict[str,
     if row is None:
         return None
 
-    payload = json.loads(str(row_value(row, "row_json")))
+    raw_payload = row_value(row, "row_json")
+    try:
+        payload = json.loads(str(raw_payload))
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return None
+
     if not isinstance(payload, dict):
         return None
     return payload
