@@ -266,3 +266,161 @@ DB vrstva je po refaktoru rozdelena:
 
 4. Aplikace pada na hostingu:
 - overit env promenne, DB dostupnost a velikost modelu.
+
+
+### uceni
+
+## Lekce 1 - hledani hrace
+### problem: uzivatel vyhleda hrace a zobrazi se mu predikace 
+
+hlavni tri soubory: Web.py, player_source.py, prediction_runtime.py
+
+web.py - webova vrstva, prijima formular (vstupy) a zobrazuje stranku, informace (vystupy)
+player_source.py - vybira, rozhoduje odkud se vezmou vstupy: CSV, API, DB
+prediction_runtime.py - bere hracovi data (vstupy) a vypocitava predikace
+
+### prvni tok - pozadavek od uzivatele
+kdyz uzivatel klikne ve vyhledavani na tlacitko hledat tak se posle HTTP (POST) pozadavek ze souboru web.py
+
+#### HTTP pozadavky a index()
+typy HTTP pozadavku a co delaji:
+GET - chci si zobrazit stranku, chci ji prijmout, nacist
+POST - posilam ti data z formulare, neco s nima udelej, zpracuj je, zjisti jeho predikaci
+
+@app.route("/", methods=["GET", "POST"])
+def index():
+
+kdyz prijde jakykoliv pozadavek, tak se zavola index()
+methods=["GET", "POST"] znamena ze tato cesta zvladne oba pozadavky:
+pokud je pozadavek jen nejake klasicke otevreni stranky tak se posle pozadavek GET
+pokud to je nejake odeslani formulare, posle se pozadavek POST
+
+#### request.method
+request method jen kontroluje co se stalo a podle toho pokracuje:
+pokud prisel POST pozadavek, chci zpracovat nejaky formular a proves predikaci
+pokud neprisel POST pozadavek tak to delat nebudu
+
+
+#### zadani od uzivatele
+
+player_name = (request.form.get("player_name") or "").strip()
+platform = (request.form.get("platform") or "PC").strip().upper()
+
+player_name - nazev promene
+request.form - data z formulare, otevre to soubor s daty
+.get("player_name") - vezmi hodnotu z pole jmenem player_name
+or "" - pokud v poli player_name nic neni vezmi prazdny text
+.strip() - ocisti data, odstrani mezi z obou stran, ze predu i ze zadu
+.upper() - prevede text na velka pismena
+.strip().upper() - odstrani mezi z obou stran a zaroven zvetsi text na velka pismena
+.get("platform") or "PC" - vezme hodnout z pole jmenem platform, pokud prazdne vezme automaticky PC
+
+
+### druhy tok - probehnuti predikace
+
+predikace se zacina tvorit ve funkci run_prediciton v souboru prediction_runtime
+
+#### row, source = resolve_player_row(...)
+
+resolve_player_row - se podiva odkud muze brat uzivatelska data, nejprve se podivat do DB cache pak do API a pote do lokalniho CSV souboru
+row - vrati data o hracovi 
+source - vrati db, api, local
+
+#### predictor = ApexPredictor("model/model.pkl")
+
+spusti se trida ApexPredictor
+ApexPredictor - nacte model ze souboru ktery uz je vytrenovan, znovu ho netrenuje
+
+class ApexPredictor:
+    def __init__(self, model_path: str = "model/model.pkl") -> None:
+        path = Path(model_path)
+        if not path.exists():
+            raise PredictorError(f"Model file not found: {model_path}")
+
+        bundle = joblib.load(path)
+        if not isinstance(bundle, dict):
+            raise PredictorError("Model bundle is invalid. Expected dict with model artifacts.")
+
+def __init__(self, model_path: str = "model/model.pkl") -> None:
+
+v konstruktoru __init__ se otevira soubor model.pkl neboli soubor modelu
+model.pkl je uz hotovy vytrenovany model ktery se uz nemeni
+pokud by se mel zmenit, musi se znovu natrenovat v notebook.ipynb a pak se vytvorit novy
+Model obsahuje: rank_model, label_encoder
+
+path = Path(model_path)
+bundle = joblib.load(path) - nacte soubor do promene, soubor pote zkontroluje ze bundle je slovnik, pokud ne vyhodi vyjimku
+pak uloží interně do self.rank_model, self.label_encoder a self.feature_columns
+
+
+#### pred = predictor.predict(row)
+
+def predict(self, player_row: Dict[str, Any]) -> Dict[str, Any]:
+        X = self._build_features(player_row)
+
+        rank_idx = int(self.rank_model.predict(X)[0])
+        rank_name = self.label_encoder.inverse_transform(np.array([rank_idx]))[0]
+        rank_metrics = self._rank_metrics(X, predicted_rank=rank_name, player_row=player_row)
+
+        return {
+            "predicted_rank": rank_name,
+            "rank_confidence": rank_metrics["rank_confidence"],
+            "promotion_chance": rank_metrics["promotion_chance"],
+            "demotion_risk": rank_metrics["demotion_risk"],
+            "rank_profile": rank_metrics.get("rank_profile", []),
+            **self._recommendations(player_row),
+        }
+
+X = self._build_features(player_row) - spusti metodu _build_features ktera vezme hracuv slovni (row) a pro kazdy sloupec a radek prevede text na cislo
+prevede row na takovy format ktery je potreba
+
+self.rank_model.predict(X) - pouzije model a vrati model [5,4,6,3,...]
+int(...[0]) - vezme prvni hodnotu
+self.label_encoder.inverse_transform - vezme to cislo a prepise ho jako spravny nazev napr: gold, silver,...
+
+rank_metrics = self._rank_metrics(X, predicted_rank=rank_name, player_row=player_row) - vola metodu compute_rank_metrics() z predictor_logic a ten spocita rank_confidence, promotion_chance, demotion_risk, rank_profile
+
+
+return {...} - vraci predikace, ktere se maji vypsat
+**self._recommendations(player_row) - zavola build_recommendations(player_row) a tato funkce vypocitava doporuceny setup hrace
+
+rank_confidence = float(pred.get("rank_confidence", 0.0))
+
+prevede vysledek modelu na cislo, stejne to funguje i pro promotion_chance a demotion_risk
+
+result = {
+        "player": row["player"],
+        "rank": pred["predicted_rank"],
+        "rank_confidence": format_percent(rank_confidence),
+        "promotion_chance": format_percent(promotion_chance),
+        "demotion_risk": format_percent(demotion_risk),
+        "rank_profile": format_rank_profile(list(pred.get("rank_profile", []))),
+        "source": source,
+        "best_map": pred["best_map"],
+        "best_legend": pred["best_legend"],
+        "best_drop_zone": pred["best_drop_zone"],
+        "ideal_team_role": pred["ideal_team_role"],
+        "combat_style": pred["combat_style"],
+    }
+
+zde se vytvori slovnik ktery se pak posila na web
+
+recent_matches = row.get("recent_matches") if isinstance(row.get("recent_matches"), list) else []
+    if recent_matches:
+        result["recent_games"] = recent_matches[:5]
+        result["recent_games_kind"] = "api"
+    else:
+        result["recent_games"] = build_estimated_recent_games(
+            row=row,
+            rank_confidence=rank_confidence,
+            promotion_chance=promotion_chance,
+            demotion_risk=demotion_risk,
+        )
+        result["recent_games_kind"] = "estimate"
+
+recent_matches - zjistuje jestli ma hrac historii zapasu:
+pokud ani vypise se poslednich 5 zapasu
+pokud ne spusti se funkce build_estimated_recent_games ktera mu odhadne poslednich 5 zapasu
+
+
+## Lekce dva - notebook.ipynb
