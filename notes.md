@@ -424,3 +424,167 @@ pokud ne spusti se funkce build_estimated_recent_games ktera mu odhadne posledni
 
 
 ## Lekce dva - notebook.ipynb
+
+### prvni bunka - importy a nastaveni prostredi
+
+import warnings - nacita modul pro praci s hrozbami (warningy)
+warnings.filterwarnings('ignore') - skryva warningy aby nebyli videt
+from pathlib import Path - bezpecna prace se soubory a cesty
+import joblib - ukladani, nacitani moduloveho bundelu
+import numpy as np - prace s numerikou
+import pandas as pd - DataFrame tabulky
+import matplotlib.pyplot as plt - na grafy
+import seaborn as sns - hezci statisticek vizualy
+from sklearn.ensemble import RandomForestClassifier - klasifikator random forest modelu
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix - metriky pro vyhodnoceni
+from sklearn.model_selection import train_test_split - rozdeli data na trenovaci a testovaci
+from sklearn.preprocessing import LabelEncoder - prevod textovich trid ranku na cisla
+sns.set(style='whitegrid') - styl grafu
+%matplotlib inline - graf se vypise v notebooku
+
+### druha bunka - nacteni CSV
+
+dataset_path = Path('data/players_ready.csv') - definuje cestu k souboru
+if not dataset_path.exists():
+    raise FileNotFoundError(f'Dataset not found: {dataset_path}') - jestli nenajde cestu k souboru vyhodi vyjimku
+
+df = pd.read_csv(dataset_path) - nacte CSV do DataFrame pouzije knihovnu pandas
+print('Dataset file:', dataset_path) - vypise cestu odkud se to nacetlo
+print('Rows:', len(df)) - spocita a vypise pocet radku
+print('Columns:', len(df.columns)) - vypise pocet sloupcu
+display(df.head(5)) - vypise prvnich pet radku souboru
+
+### treti bunka - kontrola a cisteni dat
+
+required_cols = [
+    'player', 'uid', 'level', 'rank', 'rank_score', 'kills', 'damage',
+    'headshots', 'games_played', 'wins', 'kdr', 'damage_per_game'
+]
+
+seznam slopupcu ktere jsou potreba pro funkcnost, bez nich nemuze pipeline bezet
+
+missing = [col for col in required_cols if col not in df.columns] - zjistuje jestli nejake sloupce chybi
+print('Missing columns:', missing) - vypise chybjejici sloupce, pokud nejake jsou
+
+if missing:
+    raise ValueError(f'Chybí sloupce: {missing}') - vyhodi vyjimku (zastavi program) kdyz nejaky sloupec chybi 
+
+print('Null values by column:') - pokud jsou vsechny sloupce v poradku tak vypise ze nic nechybi 
+print(df[required_cols].isna().sum()):
+
+df[required_cols] - projde jen sloupce ktere jsou v required_cols 
+.isna() vraci hodnoty TRUE - hodnota chybi, FALSE - hodnota existuje
+.sum() spocita vsechny TRUE (1) a vrati soucet vsech TRUE neboli neplatnych radku
+
+
+df = df.dropna(subset=['rank']).copy() - odstrani radky kde chybi rank, nemuze chybet cilova promenna
+
+numeric_cols = ['level', 'rank_score', 'kills', 'damage', 'headshots', 'games_played', 'wins', 'kdr', 'damage_per_game'] - slopce ktere musi byt numericke, musi tam byt cislo
+
+for col in numeric_cols:
+    df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0.0) - pokousi se prevest hodnoty na cisla, pokud jsou tam neplatne hodnoty, prepise je na 0.0
+
+print('Null values after conversion:')
+print(df[required_cols].isna().sum()) - vypise pocet chybnych sloupcu po predchozi uprave
+
+print('Unique rank values:', df['rank'].nunique()) - vypise pocet rank trid, takze 9 
+print(df['rank'].value_counts().head(15)) - vypise prvnich 15 ranku, takze vsechny a kolik jich kazdych je takze (silver - 542)
+
+### ctvrta bunka - priprava vstupu a cilove promenne
+
+feature_columns = ['level', 'rank_score', 'kills', 'damage', 'headshots', 'games_played', 'wins', 'kdr', 'damage_per_game']
+- seznam vstupnich promenych pro model (predikaci)
+
+X = df[feature_columns] - vstupní vlastnosti modelu
+y = df['rank'].astype(str) - cílová proměnná
+
+label_encoder = LabelEncoder() - inicializace encoderu
+y_encoded = label_encoder.fit_transform(y) textovym rankum da ciselne stitky
+
+print('Feature columns:', feature_columns) - kontrola vstupu
+print('Target classes:', list(label_encoder.classes_)) - vypis ranku, jako model rozlisuje ranky
+print('Class counts:')
+print(pd.Series(y_encoded).value_counts().sort_index())
+- vypise jednotlive ranky jako cisla a u kazdeho napise kolikrat tam je a pote je seradi podle indexu
+
+### pata bunka - rozdeleni dat na trenovaci a testovaci
+split_kwargs = {'test_size': 0.2, 'random_state': 42} - nastavi ze 20% dat bude testovacich
+class_counts = pd.Series(y_encoded).value_counts() - zpocita kolikrat tam je jeden rank ale pro vsechny ranky 
+can_stratify = len(class_counts) > 1 and class_counts.min() >= 2 - kontroluje jestli jsou alespon 2 vzorky v nejmensi tride
+
+if can_stratify:
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y_encoded, stratify=y_encoded, **split_kwargs
+    ) - pokud to projde zachova pomer mezi trenovacimi a testovacimi daty
+else:
+    X_train, X_test, y_train, y_test = train_test_split(X, y_encoded, **split_kwargs) - velikost splitu
+
+print('Train shape:', X_train.shape)
+print('Test shape:', X_test.shape)
+print('Train class distribution:')
+print(pd.Series(y_train).value_counts().sort_index())
+
+### sesta bunka - trenink modelu
+rank_model = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
+- nastaveni RandomForest modelu - 100 stromu, staticky seed a vyuziva vsechna jadra procesoru
+
+rank_model.fit(X_train, y_train) - vytrenuje model
+
+train_preds = rank_model.predict(X_train) - predikace na trenovacich datech
+test_preds = rank_model.predict(X_test) - predikace na testovacich datech
+
+print('Train accuracy:', accuracy_score(y_train, train_preds)) - vypocita presnost treninku
+print('Test accuracy:', accuracy_score(y_test, test_preds)) - vypocita presnopst testu
+
+### sedma bunka - vyhodnoceni modelu
+print('Classification report (test set):') - Precision/recall/F1 per třída + macro/weighted avg.
+
+Precision - v procentech kolikrat to bylo spravne urcene ale jen u jednotlive tridy (97% znamena ze v 97% to byla pravda)
+Recall - kolik procent z jednotlive tridy model zachytil napr (98% bronzu model zachytil)
+F1-score - urcuje jak je dobry model v oblasti precision a recall
+Support - kolik vzorku bylo v jednotlive tride
+Accuracy - celkova uspesnost modelu, bere to z F1-score
+Macro-avg - prumery vsechn metrik
+weighted-avg - prumer podle poctu vzorku, trida ktera ma vice vzorku ma vetsi hodnotu nez trida ktera jich ma min
+
+
+print(classification_report(y_test, test_preds, target_names=label_encoder.classes_))
+
+cm = confusion_matrix(y_test, test_preds)
+cm_df = pd.DataFrame(cm, index=label_encoder.classes_, columns=label_encoder.classes_)
+display(cm_df)
+
+plt.figure(figsize=(10, 6))
+sns.heatmap(cm_df, annot=True, fmt='d', cmap='Blues')
+plt.title('Confusion Matrix')
+plt.ylabel('True rank')
+plt.xlabel('Predicted rank')
+plt.show()
+
+### osma bunka - analyza pravdepodobnosti
+if hasattr(rank_model, 'predict_proba'): - overi ze model umi pravdepodobnosti
+    proba = rank_model.predict_proba(X_test)
+    max_proba = proba.max(axis=1)
+    print('Průměrná nejvyšší pravděpodobnost (confidence):', np.mean(max_proba))
+    print('Minimální nejvyšší pravděpodobnost:', np.min(max_proba))
+    print('Maximální nejvyšší pravděpodobnost:', np.max(max_proba))
+else:
+    print('Model nepodporuje predict_proba.')
+
+
+### devata bunka - export modelu
+bundle = {
+    'rank_model': rank_model,
+    'label_encoder': label_encoder,
+    'feature_columns': feature_columns,
+}
+
+- sbali vse potrebne pro runtime
+
+out_path = Path('model/model.pkl') - cilovy soubor modelu
+out_path.parent.mkdir(parents=True, exist_ok=True) - pokud slozka neexistuje tak ji vytvori
+joblib.dump(bundle, out_path, compress=('xz', 3)) - ulozi komprimovany bundle
+print(f'Saved model bundle to {out_path}') = vypise kam model ulozil
+print('Bundle size (MB):', out_path.stat().st_size / (1024 * 1024)) - vypise velikost modelu
+
+## lekce tri - sbirani dat v notebook_data_collection
