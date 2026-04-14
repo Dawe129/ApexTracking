@@ -433,14 +433,11 @@ from pathlib import Path - bezpecna prace se soubory a cesty
 import joblib - ukladani, nacitani moduloveho bundelu
 import numpy as np - prace s numerikou
 import pandas as pd - DataFrame tabulky
-import matplotlib.pyplot as plt - na grafy
-import seaborn as sns - hezci statisticek vizualy
 from sklearn.ensemble import RandomForestClassifier - klasifikator random forest modelu
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix - metriky pro vyhodnoceni
 from sklearn.model_selection import train_test_split - rozdeli data na trenovaci a testovaci
 from sklearn.preprocessing import LabelEncoder - prevod textovich trid ranku na cisla
-sns.set(style='whitegrid') - styl grafu
-%matplotlib inline - graf se vypise v notebooku
+
 
 df = df.dropna(subset=['rank']).copy()
 .dropna - odstrani radky ci sloupce kde chybjeji hodnoty
@@ -567,13 +564,6 @@ print(classification_report(y_test, test_preds, target_names=label_encoder.class
 cm = confusion_matrix(y_test, test_preds)
 cm_df = pd.DataFrame(cm, index=label_encoder.classes_, columns=label_encoder.classes_)
 display(cm_df)
-
-plt.figure(figsize=(10, 6))
-sns.heatmap(cm_df, annot=True, fmt='d', cmap='Blues')
-plt.title('Confusion Matrix')
-plt.ylabel('True rank')
-plt.xlabel('Predicted rank')
-plt.show()
 
 ### osma bunka - analyza pravdepodobnosti
 if hasattr(rank_model, 'predict_proba'): - overi ze model umi pravdepodobnosti
@@ -803,28 +793,52 @@ def harvest_uids_to_csv(
     print(f'Harvest done: {len(rows)} rows after {attempts} attempts -> {out}')
     return rows
 
-### TODO
+## Jednovětý business cíl:
+Co přesně appka přinási
+- apka je urcena pro rychlou orientacni predikaci hrace, muze mu potvrdit jestli odpovida jeho rank opravdu jeho schopnostem, ci by mel byt vis nebo niz a dava mu i doporuceny setup na postavy, mapy, atd..
 
-Co ti důležitě chybí nebo je potřeba zpřesnit:
 
-Jednovětý business cíl:
-Co přesně appka přináší (rychlá orientační predikce ranku + doporučení setupu).
 Architektura v 5 bodech:
-Frontend, runtime, data source, model artifact, persistence.
+Frontend 
+- web fomular prijme hracovo jmeno a platforu pres kterou hraje a vyhodnoti mu predikaci
+runtime
+- sjednoti vstupni data, vyvola model, dopocit metriky, provede predikaci a pote vystup
+data source
+- data se berou z DB, pote pres harvester z API a nakonec lokalne z CSV
+model artifact
+- nasazeny model ulozeny jako bundle ktery obsahuje klasifikator, encoder trid a seznam feature
+persistence
+- PostgreSQL uklada uzivatele, historii predikaci 
+
+
 Kvalita modelu v jedné větě:
-Např. „celkově 0.92 accuracy, slabší performance na vzácných třídách“.
+- kvalita model je silna, velmi silna u nizsich ranku (vice vzorku), mene silna u vetsich ranku (mene vzorku), ale celkove by mela dosahovat 92%
+
+
 Limity modelu:
-Class imbalance, kvalita vstupních dat, API výpadky, odhad recent games.
+- Vzacne/vetsi tirdy ranku maji mene vzroku takze maji horsi recall a precision
+
+
 Proč RandomForest:
 Rychlý baseline, robustní na mixed numerická data, snadná interpretace feature importance.
+
+
 Verzionování modelu:
 Kdy a jak se model obnovuje, co je trigger retréninku.
+
+
 Monitoring v produkci:
 Co sleduješ po nasazení (error rate, response time, fallback rate, distribuce tříd).
+
+
 Rizika a mitigace:
 Rate limits, stale cache, missing columns, schema drift.
+
+
 Security:
 Práce s API key a DB URL jen přes env.
+
+
 Opravit 2 nepřesnosti:
 V notes.md máš „accuracy bere to z F1-score“ (to není přesně pravda) a pár terminologických formulací, které by u zkoušení mohly působit nejistě.
 Doporučené „zkouškové“ otázky, na které být ready:
