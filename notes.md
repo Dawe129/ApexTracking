@@ -442,6 +442,17 @@ from sklearn.preprocessing import LabelEncoder - prevod textovich trid ranku na 
 sns.set(style='whitegrid') - styl grafu
 %matplotlib inline - graf se vypise v notebooku
 
+df = df.dropna(subset=['rank']).copy()
+.dropna - odstrani radky ci sloupce kde chybjeji hodnoty
+subset-['rank] - znamena ze kontroluje jen sloupec rank, subset jen urcuje na jaky sloupec se ma zamerit
+.copy() - vytvori novy nezavisly DataFrame
+
+df['rank'].nunique() - vraci pocet unikatnich hodnot ve sloupci rank
+
+fit_transform(y) - prevodnik mapovani trid (Bronze->0, Silver->1, Gold->2)
+
+pd.Series(y_encoded).value_counts() - zabali pole y_encoded do pandas series, values_counts() - spocita cetnost kazde tridy
+
 ### druha bunka - nacteni CSV
 
 dataset_path = Path('data/players_ready.csv') - definuje cestu k souboru
@@ -482,7 +493,8 @@ df = df.dropna(subset=['rank']).copy() - odstrani radky kde chybi rank, nemuze c
 numeric_cols = ['level', 'rank_score', 'kills', 'damage', 'headshots', 'games_played', 'wins', 'kdr', 'damage_per_game'] - slopce ktere musi byt numericke, musi tam byt cislo
 
 for col in numeric_cols:
-    df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0.0) - pokousi se prevest hodnoty na cisla, pokud jsou tam neplatne hodnoty, prepise je na 0.0
+    df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0.0)
+ - pokousi se prevest hodnoty na cisla, pokud jsou tam neplatne hodnoty, prepise je na 0.0
 
 print('Null values after conversion:')
 print(df[required_cols].isna().sum()) - vypise pocet chybnych sloupcu po predchozi uprave
@@ -526,7 +538,9 @@ print(pd.Series(y_train).value_counts().sort_index())
 
 ### sesta bunka - trenink modelu
 rank_model = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
-- nastaveni RandomForest modelu - 100 stromu, staticky seed a vyuziva vsechna jadra procesoru
+n_estimators=100 - nastaveni RandomForest modelu - 100 stromu, 
+random_state=42 - aby se les pokazde stavel stejne
+n_jobs=-1 - jak moc paralarne se les stavi
 
 rank_model.fit(X_train, y_train) - vytrenuje model
 
@@ -588,3 +602,235 @@ print(f'Saved model bundle to {out_path}') = vypise kam model ulozil
 print('Bundle size (MB):', out_path.stat().st_size / (1024 * 1024)) - vypise velikost modelu
 
 ## lekce tri - sbirani dat v notebook_data_collection
+
+### prvni bunka - importy a zavislosti 
+from concurrent.futures import ThreadPoolExecutor, as_completed - paralelne vola UID ve sberu
+from pathlib import Path - bezpecna prace s cestami
+import csv - cteni a zapis CSV
+import random = nahodne generovani kandidatnich UID
+import time - pauza mezi requesty
+
+from src.apex_api import (
+    CollectorError,
+    fetch_player_stats,
+    fetch_player_stats_by_uid,
+    is_row_usable,
+    load_api_key,
+    player_to_row,
+)
+- fetch funkce validace radku a mapovani payloadu do radku
+
+### druha bunka - sber dat podle seznamu jmen
+def collect_players_to_csv(
+    players,
+    out_csv='data/players.csv',
+    platform='PC',
+    sleep_seconds=0.25,
+    min_level=25.0,
+    min_kills=80.0,
+    min_damage=20000.0,
+    min_rank_score=1000.0,
+    min_nonzero_metrics=3,
+    allow_no_gameplay_signal=False,
+): 
+- vstupni parametry
+
+    api_key = load_api_key() - nacte api klic
+    rows = [] - drzi vysledne zaznamy
+    seen = set() - kontroluje duplicity
+
+    for name in [str(p).strip() for p in players if str(p).strip()]: - smycka pro vycistena jmena 
+        try:
+            payload = fetch_player_stats(player=name, api_key=api_key, platform=platform)
+- stahne profil hrace podle jmena
+            row = player_to_row(payload, requested_name=name) 
+- prevede api payload na jednotny radek pro CSV
+            if not is_row_usable(
+                row,
+                min_level=min_level,
+                min_kills=min_kills,
+                min_damage=min_damage,
+                min_rank_score=min_rank_score,
+                min_nonzero_metrics=min_nonzero_metrics,
+                require_gameplay_signal=not allow_no_gameplay_signal,
+            ): - overi minimalni kvalitu dat podle limitu, 
+                continue
+
+            key = str(row.get('uid', '')).strip() or str(row.get('player', '')).strip().lower()
+- bere uid a kdyz nenajde uid tak bere jmeno hrace
+            if key in seen:
+                continue
+            seen.add(key)
+            rows.append(row)
+            print(f'OK: {name}')
+        except CollectorError as exc:
+- zachycuje chyby api
+            print(f'SKIP {name}: {exc}')
+
+        if sleep_seconds > 0:
+            time.sleep(sleep_seconds)
+- pauza mezi requesty, ochranuje pred rate limity
+
+    if not rows:
+        raise RuntimeError('No rows collected.')
+
+    out = Path(out_csv) = vysledna cesta
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with out.open('w', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+        writer.writeheader()
+        writer.writerows(rows)
+
+    print(f'Saved {len(rows)} rows to {out}') - vypise hlavicku
+    return rows - vrati radky aby se s nimi dalo pracovat
+
+### treti bunka - uid harvesting
+def harvest_uids_to_csv(
+    target=1500,
+    max_attempts=250000,
+    out_csv='data/players.csv',
+    seed_csv='data/players.csv',
+    platform='PC',
+    workers=4,
+    request_timeout=20.0,
+    checkpoint_every=25,
+    min_level=25.0,
+    min_kills=80.0,
+    min_damage=20000.0,
+    min_rank_score=1000.0,
+    min_nonzero_metrics=3,
+    allow_no_gameplay_signal=False,
+):
+- vstupni parametry
+
+    api_key = load_api_key() - nacte api
+    out = Path(out_csv) - vysledna cesta
+
+    seeds = [] - nacte seed UID, bere jen ciselne UID
+    if Path(seed_csv).exists():
+        with Path(seed_csv).open('r', newline='', encoding='utf-8') as f:
+            for r in csv.DictReader(f):
+                uid = str(r.get('uid', '')).strip()
+                if uid.isdigit():
+                    seeds.append(int(uid))
+
+    if not seeds:
+        seeds = [2796574388, 1008248071359, 1008995227775, 1003944652988]
+- pokud nejsou zadne pouzitelne seeds 
+
+    rows = []
+    collected = set()
+    seen_probe = set()
+    attempts = 0
+
+    def candidate_uid():
+        pivot = random.choice(seeds)
+        return str(max(1, pivot + random.randint(-25000, 25000)))
+- vezme nahodny seed a prohledava v rozmezi -25 000 az +25 000
+
+    def fetch_one(uid):
+        try:
+            payload = fetch_player_stats_by_uid(uid=uid, api_key=api_key, platform=platform, timeout=request_timeout)
+- mapuje payload, zkusi dotaz pres UID
+            row = player_to_row(payload)
+            if not is_row_usable(
+                row,
+                min_level=min_level,
+                min_kills=min_kills,
+                min_damage=min_damage,
+                min_rank_score=min_rank_score,
+                min_nonzero_metrics=min_nonzero_metrics,
+                require_gameplay_signal=not allow_no_gameplay_signal,
+            ):
+- validace radku
+                return None
+            return row
+        except Exception:
+            return None
+
+    with ThreadPoolExecutor(max_workers=max(1, int(workers))) as ex:
+- bezi dokud neni target (vysledny pocet radku), nebo maximalni pocet pokusu
+        while len(rows) < int(target) and attempts < int(max_attempts):
+            batch = []
+- sbira nova UID ke zkouseni, nebere duplicity, 
+            while len(batch) < max(1, workers * 2) and attempts < int(max_attempts):
+                uid = candidate_uid()
+                attempts += 1
+                if uid in seen_probe:
+                    continue
+                seen_probe.add(uid)
+                batch.append(uid)
+
+            futures = [ex.submit(fetch_one, uid) for uid in batch]
+- posle batch paralerne na API
+            for fu in as_completed(futures):
+- as_completed - zpracovava pozadavky jak prichazeji
+                row = fu.result()
+                if row is None:
+                    continue
+                uid = str(row.get('uid', '')).strip()
+                if not uid or uid in collected:
+                    continue
+- filtrace radku
+                collected.add(uid)
+                rows.append(row)
+                seeds.append(int(uid))
+- ulozeni validniho radku
+
+                if len(rows) % checkpoint_every == 0:
+- checkpoint na zapis radku do CSV
+                    out.parent.mkdir(parents=True, exist_ok=True)
+                    with out.open('w', newline='', encoding='utf-8') as f:
+                        writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+                        writer.writeheader()
+                        writer.writerows(rows)
+                    print(f'Checkpoint: {len(rows)} rows after {attempts} attempts')
+
+            if len(rows) >= int(target):
+                break
+- kdyz radky dosahnou vysledku tak se loop ukonci
+
+    if not rows:
+        raise RuntimeError('No UID rows harvested.')
+
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with out.open('w', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+        writer.writeheader()
+        writer.writerows(rows)
+- po skonceni znovu zapise cely CSV
+
+    print(f'Harvest done: {len(rows)} rows after {attempts} attempts -> {out}')
+    return rows
+
+### TODO
+
+Co ti důležitě chybí nebo je potřeba zpřesnit:
+
+Jednovětý business cíl:
+Co přesně appka přináší (rychlá orientační predikce ranku + doporučení setupu).
+Architektura v 5 bodech:
+Frontend, runtime, data source, model artifact, persistence.
+Kvalita modelu v jedné větě:
+Např. „celkově 0.92 accuracy, slabší performance na vzácných třídách“.
+Limity modelu:
+Class imbalance, kvalita vstupních dat, API výpadky, odhad recent games.
+Proč RandomForest:
+Rychlý baseline, robustní na mixed numerická data, snadná interpretace feature importance.
+Verzionování modelu:
+Kdy a jak se model obnovuje, co je trigger retréninku.
+Monitoring v produkci:
+Co sleduješ po nasazení (error rate, response time, fallback rate, distribuce tříd).
+Rizika a mitigace:
+Rate limits, stale cache, missing columns, schema drift.
+Security:
+Práce s API key a DB URL jen přes env.
+Opravit 2 nepřesnosti:
+V notes.md máš „accuracy bere to z F1-score“ (to není přesně pravda) a pár terminologických formulací, které by u zkoušení mohly působit nejistě.
+Doporučené „zkouškové“ otázky, na které být ready:
+
+Proč tento model a ne jiný?
+Jak poznáš, že model degradoval?
+Co se stane, když API/DB vypadne?
+Jak bys zlepšil slabé třídy (Master/Predator)?
+Jak zajistíš reprodukovatelnost tréninku?
