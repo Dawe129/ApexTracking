@@ -37,8 +37,6 @@ V model/model.pkl je:
 - label_encoder
 - feature_columns
 
-Damage a win_rate modely uz se v aktualni verzi nepouzivaji.
-
 ## 5) Jak probiha predikce v runtime
 
 Tok requestu:
@@ -593,8 +591,11 @@ print('Bundle size (MB):', out_path.stat().st_size / (1024 * 1024)) - vypise vel
 
 ## lekce tri - sbirani dat v notebook_data_collection
 
+mame dva zpusoby: podle seznamu jmen a podle prohledavani UID kolem znamych seed UID
+
 ### prvni bunka - importy a zavislosti 
 from concurrent.futures import ThreadPoolExecutor, as_completed - paralelne vola UID ve sberu
+- as_completed - vraci hned vysledky, hned jak dobehnou
 from pathlib import Path - bezpecna prace s cestami
 import csv - cteni a zapis CSV
 import random = nahodne generovani kandidatnich UID
@@ -602,13 +603,12 @@ import time - pauza mezi requesty
 
 from src.apex_api import (
     CollectorError,
-    fetch_player_stats,
-    fetch_player_stats_by_uid,
-    is_row_usable,
-    load_api_key,
-    player_to_row,
+    fetch_player_stats, - stahne profil podle jmena
+    fetch_player_stats_by_uid, - stahne profil podle UID
+    is_row_usable, - validace jesli je radek kvalitni
+    load_api_key, - nacte API klic
+    player_to_row, - prevede API payload na jednotny radek
 )
-- fetch funkce validace radku a mapovani payloadu do radku
 
 ### druha bunka - sber dat podle seznamu jmen
 def collect_players_to_csv(
@@ -817,10 +817,13 @@ Kvalita modelu v jedné větě:
 
 Limity modelu:
 - Vzacne/vetsi tirdy ranku maji mene vzroku takze maji horsi recall a precision
-
+- kvlita vstupnich dat, sptane ci chybjejici hondoty snizuji kvalitu predikace
+- API vypadky a rate limits, muze dojti k fallbacku na starsi ci lokalni data
+- recent matches, pokud se nenajdou pres API tak se vytvori odhad
 
 Proč RandomForest:
-Rychlý baseline, robustní na mixed numerická data, snadná interpretace feature importance.
+- je rychly a spolehlivy, dobry pro tabulkova data 
+- robustni vuci spatnym datum, ma dostupne predict_proba ktere pouzivam pri confidence, promotion, demotion
 
 
 Verzionování modelu:
@@ -828,15 +831,17 @@ Kdy a jak se model obnovuje, co je trigger retréninku.
 
 
 Monitoring v produkci:
-Co sleduješ po nasazení (error rate, response time, fallback rate, distribuce tříd).
-
+- error rate, pocet chyb predikace, API, DB
+- response time, latence endpointu predikace
+- fallback rate
+- kvalita dat
 
 Rizika a mitigace:
 Rate limits, stale cache, missing columns, schema drift.
 
 
 Security:
-Práce s API key a DB URL jen přes env.
+- Práce s API key a DB URL jen přes environment variables
 
 
 Opravit 2 nepřesnosti:
@@ -844,7 +849,78 @@ V notes.md máš „accuracy bere to z F1-score“ (to není přesně pravda) a 
 Doporučené „zkouškové“ otázky, na které být ready:
 
 Proč tento model a ne jiný?
+- je snadno nasaditelny 
 Jak poznáš, že model degradoval?
+- sleduji pokles accuracy a F1-score
 Co se stane, když API/DB vypadne?
+- kdyz vypadne oboje tak pracuje s lokanim CSV
 Jak bys zlepšil slabé třídy (Master/Predator)?
+- doplnil bych cilene data do techto trid
 Jak zajistíš reprodukovatelnost tréninku?
+- fixovany random_state, verzovany dataset
+
+
+
+Trénování modelu
+
+Proč jste zvolil právě tento model a ne logistickou regresi nebo gradient boosting?
+- model klasifikacni model mi prijde dobry, protoze je jednodusse nasaditelny a dobre robustny
+- Zvolil jsem RandomForest jako robustní baseline pro tabulková data. Oproti logistické regresi lépe zachytí nelineární vztahy bez složité feature transformace. Oproti gradient boostingu je jednodušší na ladění a stabilní pro první produkční verzi.
+
+Jaké vstupní feature model používá a proč právě tyto?
+- tak pouziva vsechny numericke promene po ocisten jako napriklad damage, pocet her, pocet killu, pocet winu atd.. 
+- pouziva tyto promenny protoze jsou to hlavni statistiky hrace a diky nim se da poznat jak je hrac dobri, neboli jaky ma rank
+
+Jak probíhá rozdělení na train/test a proč je důležité stratifikovat?
+- data se rozdelujou v pomeru 1:5 testovaci:trenovaci - na 80% procentech dat trenuji model a na 20% ho testuji
+
+Co u vás znamená random_state a proč je důležitý pro reprodukovatelnost?
+- random_state uchovava aby se stromy nijak nemenily tudiz pro stejneho hrace bude stale stejny popis
+-random_state fixuje fixuje nahodnost pri splitu i treninku
+
+Jak interpretujete rozdíl mezi train accuracy a test accuracy?
+- train accuracy je presnost na datech na kterych se uci
+- test accuracy je presnost na neviditelnych datech
+
+Co by pro vás byl signál overfittingu?
+- ze test accuracy je rozdilne mensi nez train accuracy, spravne by to melo byt obracene
+
+Jak byste model zlepšil bez změny architektury aplikace?
+- mohl bych model vytrenovat z vice dat, hlavne bych mohl pridat vice vzorku u vyssich ranku, protoze tam je malo vzorku, takze to neni tak presne
+
+Jak byste postupoval při hyperparameter tuningu?
+- nevim
+
+Jak ověříte, že model funguje i na nových datech z produkce?
+- tak nejprve ocistim data ze funguji a pak zkusim jich par natrenovat a podivam se jak to vypada
+
+Jak byste vysvětlil použití predict_proba v jedné větě?
+- vraci pravdepodobnost vsechn rank trid a z nich dopocitava ostatni udaje 
+
+
+Čištění dat
+
+Jaké povinné sloupce kontrolujete před tréninkem?
+- opet stejen promenne, ktere jsou numericke
+
+Co děláte s chybějícími hodnotami a proč?
+- pokud jsou hodnoty chybjejici tak se vetisnou cely radek smaze ci preskoci, nebo kdyz je hodnota neplatna tak se hodnota nastavi na 0.0
+
+Jak převádíte numerické sloupce a proč používáte bezpečný převod?
+- pouzivam pandas funkci pd.to_numeric a hlidam ze kdyz je neplatny prevod aby ho nastavil na 0.0 
+
+Jak řešíte neplatné nebo extrémní hodnoty?
+- vetsinou pak muzeme extremni hodnoty nejak umirnit ze nastavime maximum a minimum
+
+Proč je důležité oddělit datové čištění v tréninku od runtime validace?
+- aby se data cistili mimo a nezabiralo to hlavni chod programu
+
+Jak byste detekoval schema drift v datech?
+- nevim 
+
+Jaké riziko vzniká, když čistíte data příliš agresivně?
+- mohlo by se stat ze nam pak zadna data nezbydou
+
+Co se stane, když některá třída ranku má velmi málo vzorků?
+- vetsinou pak neni moc presna a je to spis velky odhad nez nejaka presnejsi predikace, tak maji mensi vahu v weighted avg
+
